@@ -60,7 +60,7 @@ export function SignIn() {
 
             {/* Hero Text */}
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-              Modern Property Management <System></System>
+              Modern Property Management System
             </h1>
             <p className="text-lg text-blue-100 mb-12">
               Streamline rent collection, track payments, manage tenants, and grow your rental business with our premium platform.
