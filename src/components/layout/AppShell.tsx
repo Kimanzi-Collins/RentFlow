@@ -26,11 +26,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       if (!mainRef.current) return;
       gsap.fromTo(
         mainRef.current,
-        { opacity: 0, y: 16 },
+        { opacity: 0, scale: 0.98, y: 16 },
         {
           opacity: 1,
+          scale: 1,
           y: 0,
-          duration: 0.4,
+          duration: 0.5,
           ease: 'power3.out',
           clearProps: 'opacity,transform',
         }
@@ -44,11 +45,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       style={{
         display: 'flex',
         height: '100vh',
-        background: 'var(--bg-primary)',
+        background: 'var(--bg-app)',
         overflow: 'hidden',
       }}
     >
-      <Sidebar isOpen={mobileOpen} setIsOpen={setMobileOpen} />
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <Sidebar isOpen={false} setIsOpen={() => {}} />
+      </div>
 
       <div
         style={{
@@ -56,39 +60,68 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
-          overflow: 'hidden',
+          padding: '16px 24px 24px 0', // Padding around the main glass pane
+          gap: 16
         }}
       >
         <Topbar onMenuClick={() => setMobileOpen(true)} />
 
         <main
           ref={mainRef}
+          className="card-organic"
           style={{
             flex: 1,
             overflowY: 'auto',
             overflowX: 'hidden',
-            background: 'var(--bg-primary)',
-            padding: '28px 32px',
-            paddingBottom: 48,
+            background: 'rgba(255,255,255,0.5)',
+            backdropFilter: 'blur(32px)',
+            WebkitBackdropFilter: 'blur(32px)',
+            border: '1px solid rgba(255,255,255,0.8)',
+            padding: '32px',
+            margin: 0,
           }}
         >
-          <div style={{ maxWidth: 1400, margin: '0 auto' }}>{children}</div>
+          <div style={{ maxWidth: 1400, margin: '0 auto', height: '100%' }}>{children}</div>
         </main>
       </div>
 
-      {/* Mobile overlay backdrop */}
+      {/* Mobile Drawer */}
       {mobileOpen && (
         <div
-          onClick={() => setMobileOpen(false)}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.55)',
-            zIndex: 35,
-            WebkitBackdropFilter: 'blur(4px)',
-            backdropFilter: 'blur(4px)',
+            zIndex: 50,
+            display: 'flex',
           }}
-        />
+        >
+          {/* Backdrop */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(17, 24, 39, 0.4)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Drawer Content */}
+          <div
+            style={{
+              position: 'relative',
+              width: 280,
+              background: 'rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(32px)',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '24px 0 60px rgba(0,0,0,0.1)',
+            }}
+          >
+            <Sidebar isOpen={mobileOpen} setIsOpen={setMobileOpen} />
+          </div>
+        </div>
       )}
 
       <ToastProvider />

@@ -1,47 +1,234 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #f6f6f4;
-  --bg-secondary: #ffffff;
-  --text-primary: #1c1c1c;
-  --text-secondary: #6b6b6b;
-  --border-color: #e2e2df;
-  --accent: #1c1c1c;
+  --bg-app: #f4f5f3;
+  --surface-card: #ffffff;
+  --surface-hover: #f9fafb;
+  --text-main: #111827;
+  --text-muted: #6b7280;
   
-  --font-sans: 'Manrope', sans-serif;
-  --font-serif: 'Playfair Display', serif;
+  --brand-primary: #171717;
+  --brand-primary-hover: #262626;
+  --brand-primary-light: #f5f5f5;
+  
+  --accent-yellow: #facc15;
+  --accent-dark: #1f2937;
+  
+  --radius-xl: 24px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-full: 9999px;
+  
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.03);
+  --shadow-float: 0 12px 30px rgba(0, 0, 0, 0.06);
+  
+  --font-main: 'Plus Jakarta Sans', sans-serif;
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: var(--font-main);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  /* subtle warm gradient background */
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(0, 0, 0, 0.02) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(0, 0, 0, 0.02) 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Base Card Style for the organic Crextio/Donezo theme */
+.card-organic {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+  padding: 24px;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  border: 1px solid rgba(0,0,0,0.02);
+}
+.card-organic:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+}
+
+.card-dark {
+  background: var(--accent-dark);
+  color: #ffffff;
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-soft);
+}
+
+.card-primary {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Buttons */
+.btn-organic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+.btn-primary {
+  background: var(--brand-primary);
+  color: #ffffff;
+}
+.btn-primary:hover {
+  background: var(--brand-primary-hover);
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: #ffffff;
+  color: var(--text-main);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.btn-secondary:hover {
+  background: var(--surface-hover);
+  border-color: rgba(0,0,0,0.15);
+}
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+.btn-icon:hover {
+  background: var(--surface-hover);
+}
+
+/* Inputs */
+.input-organic {
+  width: 100%;
+  padding: 14px 18px;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--radius-lg);
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+}
+.input-organic:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 4px var(--brand-primary-light);
+}
+
+/* Tables */
+.table-organic {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+.table-organic th {
+  text-align: left;
+  padding: 0 16px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: none;
+}
+.table-organic tbody tr {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.table-organic tbody tr:hover {
+  transform: scale(1.005);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.table-organic td {
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-main);
+  border: none;
+}
+.table-organic td:first-child {
+  border-top-left-radius: var(--radius-lg);
+  border-bottom-left-radius: var(--radius-lg);
+}
+.table-organic td:last-child {
+  border-top-right-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.2);
+}
+
+/* ── Landing Page Missing Styles ── */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap');
+
+.font-sans {
+  font-family: 'Manrope', 'Plus Jakarta Sans', sans-serif;
 }
 
 .font-serif {
-  font-family: var(--font-serif);
+  font-family: 'Playfair Display', serif;
+}
+
+.clip-text {
+  overflow: hidden;
+  display: inline-block;
+  line-height: 1.1;
+  padding-bottom: 0.1em;
 }
 
 .vista-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 28px;
-  border-radius: 9999px;
-  background-color: #ffffff;
+  background: transparent;
   color: #1c1c1c;
+  padding: 16px 24px;
+  border-radius: 99px;
+  border: 1px solid rgba(28, 28, 28, 0.2);
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
   font-size: 14px;
-  font-weight: 500;
-  border: 1px solid #e2e2df;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
   cursor: pointer;
 }
+
 .vista-btn:hover {
-  background-color: #1c1c1c;
+  background: #1c1c1c;
   color: #ffffff;
   border-color: #1c1c1c;
 }
@@ -50,87 +237,21 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 28px;
-  border-radius: 9999px;
-  background-color: #1c1c1c;
+  background: #1c1c1c;
   color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 16px 24px;
+  border-radius: 99px;
   border: 1px solid #1c1c1c;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  text-decoration: none;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
   cursor: pointer;
 }
+
 .vista-btn-dark:hover {
-  background-color: #ffffff;
-  color: #1c1c1c;
-}
-
-/* Dashboard Overrides for Premium Feel */
-.dashboard-card {
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  padding: 32px;
-  border-radius: 0; /* Vista style uses sharp corners or very subtle rounding */
-  transition: box-shadow 0.3s ease;
-}
-.dashboard-card:hover {
-  box-shadow: 0 10px 40px rgba(0,0,0,0.03);
-}
-
-.input-vista {
-  width: 100%;
-  padding: 14px 16px;
   background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  font-size: 15px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.3s;
-}
-.input-vista:focus {
-  border-color: var(--text-primary);
-}
-
-.label-vista {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
-}
-
-.table-vista {
-  width: 100%;
-  border-collapse: collapse;
-}
-.table-vista th {
-  text-align: left;
-  padding: 16px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-color);
-}
-.table-vista td {
-  padding: 20px 16px;
-  font-size: 15px;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.clip-text {
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
-}
-.clip-text-inner {
-  transform: translateY(100%);
-}
-
-.img-reveal {
-  clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
+  color: #1c1c1c;
 }

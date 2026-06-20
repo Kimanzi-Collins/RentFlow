@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Building2, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
+import { Building2, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { useAuthStore } from '@/stores/authStore';
@@ -37,7 +37,6 @@ export const SignIn: React.FC = () => {
   const navigate = useNavigate();
 
   const formRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Stagger in form fields on mount
   useGSAP(
@@ -50,9 +49,9 @@ export const SignIn: React.FC = () => {
         {
           opacity: 1,
           y: 0,
-          duration: 0.6,
+          duration: 0.8,
           ease: 'power3.out',
-          stagger: 0.08,
+          stagger: 0.1,
           clearProps: 'opacity,transform',
         }
       );
@@ -81,476 +80,262 @@ export const SignIn: React.FC = () => {
     alignItems: 'center',
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    height: 44,
-    paddingLeft: 44,
-    paddingRight: 16,
-    background: '#ffffff',
-    border: '1px solid rgba(0,0,0,0.08)',
-    borderRadius: '12px',
-    color: '#1d1d1f',
-    fontSize: 15,
-    fontFamily: 'var(--font-body)',
-    outline: 'none',
-    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-    boxSizing: 'border-box',
-  };
-
   const inputIconStyle: React.CSSProperties = {
     position: 'absolute',
-    left: 14,
-    width: 18,
-    height: 18,
-    color: '#a1a1a6',
+    left: 16,
+    width: 20,
+    height: 20,
+    color: '#9ca3af',
     pointerEvents: 'none',
     flexShrink: 0,
   };
 
   const labelStyle: React.CSSProperties = {
     display: 'block',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#86868b',
-    marginBottom: 6,
-    fontFamily: 'var(--font-body)',
-  };
-
-  const focusInput = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = '#0066cc';
-    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,102,204,0.1)';
-  };
-
-  const blurInput = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)';
-    e.currentTarget.style.boxShadow = 'none';
+    fontSize: 14,
+    fontWeight: 700,
+    color: 'var(--text-main)',
+    marginBottom: 8,
   };
 
   return (
     <div
-      ref={containerRef}
       style={{
         minHeight: '100vh',
         display: 'flex',
-        background: '#f5f5f7',
-        fontFamily: 'var(--font-body)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
-      {/* LEFT IMAGE PANEL */}
-      <div
-        className="hidden lg:flex"
-        style={{
-          flex: '0 0 50%',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+      {/* Background Image Setup */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
         <img 
-          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80" 
-          alt="Modern architecture" 
+          src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80" 
+          alt="Premium interior" 
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
-        <div style={{
-          position: 'absolute',
-          top: 0, left: 0, width: '100%', height: '100%',
-          background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.1) 100%)',
-        }}></div>
-        <div style={{
-          position: 'absolute',
-          bottom: 64,
-          left: 64,
-          right: 64,
-          color: '#ffffff'
-        }}>
-          <h2 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 48,
-            fontWeight: 600,
-            lineHeight: 1.1,
-            letterSpacing: '-0.02em',
-            marginBottom: 16
-          }}>
-            Automate your portfolio.
-          </h2>
-          <p style={{
-            fontSize: 21,
-            fontWeight: 400,
-            color: 'rgba(255,255,255,0.8)',
-            maxWidth: 400,
-            letterSpacing: '0.01em'
-          }}>
-            RentFlow brings clarity to property management with Apple-inspired simplicity.
-          </p>
-        </div>
+        {/* Soft overlay gradient to ensure readability */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(17,24,39,0.7) 0%, rgba(17,24,39,0.3) 100%)' }} />
       </div>
 
-      {/* RIGHT FORM PANEL */}
+      {/* Main Glass Form */}
       <div
+        className="card-organic"
+        ref={formRef}
         style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '48px 24px',
-          overflowY: 'auto',
-          background: '#ffffff',
+          width: '100%',
+          maxWidth: '440px',
+          padding: '48px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(32px)',
+          WebkitBackdropFilter: 'blur(32px)',
+          border: '1px solid rgba(255,255,255,0.4)',
+          position: 'relative',
+          zIndex: 10,
+          boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
+          margin: '24px' // mobile safe margin
         }}
       >
-        <div style={{ width: '100%', maxWidth: 380 }} ref={formRef}>
-          {/* Logo */}
+        {/* Logo */}
+        <div
+          data-animate
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 48,
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              background: 'var(--brand-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 20px rgba(79,70,229,0.3)'
+            }}
+          >
+            <Building2 style={{ width: 24, height: 24, color: '#ffffff' }} />
+          </div>
+          <span
+            style={{
+              fontWeight: 800,
+              fontSize: 24,
+              color: 'var(--text-main)',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            RentFlow
+          </span>
+        </div>
+
+        {/* Heading */}
+        <div data-animate style={{ marginBottom: 32, textAlign: 'center' }}>
+          <h1
+            style={{
+              fontSize: 28,
+              fontWeight: 800,
+              color: 'var(--text-main)',
+              letterSpacing: '-0.02em',
+              marginBottom: 8,
+            }}
+          >
+            Welcome back
+          </h1>
+          <p style={{ fontSize: 15, color: 'var(--text-muted)' }}>
+            Please enter your details to sign in.
+          </p>
+        </div>
+
+        {/* Error notification */}
+        {error && (
           <div
             data-animate
             style={{
+              marginBottom: 20,
+              padding: '14px 16px',
+              background: '#fff0f0',
+              border: '1px solid #ffd6d6',
+              borderRadius: 'var(--radius-lg)',
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              marginBottom: 48,
-              justifyContent: 'center',
             }}
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 9,
-                background: '#f5f5f7',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Building2 style={{ width: 20, height: 20, color: '#0066cc' }} />
-            </div>
-            <span
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 600,
-                fontSize: 20,
-                color: '#1d1d1f',
-                letterSpacing: '-0.02em'
-              }}
-            >
-              RentFlow
-            </span>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>{error}</span>
           </div>
+        )}
 
-          {/* Heading */}
-          <div data-animate style={{ marginBottom: 32, textAlign: 'center' }}>
-            <h1
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 28,
-                fontWeight: 600,
-                color: '#1d1d1f',
-                letterSpacing: '-0.02em',
-                marginBottom: 8,
-              }}
-            >
-              Sign in to your account
-            </h1>
-            <p style={{ fontSize: 15, color: '#86868b' }}>
-              Welcome back to your dashboard
-            </p>
-          </div>
-
-          {/* Error notification */}
-          {error && (
-            <div
-              data-animate
-              style={{
-                marginBottom: 20,
-                padding: '12px 16px',
-                background: '#fff0f0',
-                border: '1px solid #ffd6d6',
-                borderRadius: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-              }}
-            >
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: '#ff3b30',
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 13, color: '#c92a2a', lineHeight: 1.4 }}>
-                {error}
-              </span>
-            </div>
-          )}
-
-          {/* Demo mode notice */}
-          {isDemoMode && (
-            <div
-              data-animate
-              style={{
-                marginBottom: 20,
-                padding: '12px 16px',
-                background: '#fff9e6',
-                border: '1px solid #ffeba3',
-                borderRadius: 12,
-              }}
-            >
-              <p style={{ fontSize: 13, color: '#d97706', lineHeight: 1.5 }}>
-                <strong>Demo mode:</strong> Supabase not configured. Use any credentials to preview the UI.
-              </p>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {/* Email */}
-            <div data-animate>
-              <label htmlFor="email" style={labelStyle}>
-                Email address
-              </label>
-              <div style={inputWrapStyle}>
-                <Mail style={inputIconStyle} />
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                  required
-                  style={inputStyle}
-                  autoComplete="email"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div data-animate>
-              <label htmlFor="password" style={labelStyle}>
-                Password
-              </label>
-              <div style={inputWrapStyle}>
-                <Lock style={inputIconStyle} />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                  required
-                  style={{ ...inputStyle, paddingRight: 44 }}
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#a1a1a6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 0,
-                    transition: 'color 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.color = '#1d1d1f';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.color = '#a1a1a6';
-                  }}
-                >
-                  {showPassword ? (
-                    <EyeOff style={{ width: 16, height: 16 }} />
-                  ) : (
-                    <Eye style={{ width: 16, height: 16 }} />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember me + Forgot password */}
-            <div
-              data-animate
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    accentColor: '#0066cc',
-                    cursor: 'pointer',
-                  }}
-                />
-                <span style={{ fontSize: 13, color: '#86868b' }}>
-                  Remember me
-                </span>
-              </label>
-              <a
-                href="#"
-                style={{
-                  fontSize: 13,
-                  color: '#0066cc',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                  transition: 'opacity 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.opacity = '0.75';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.opacity = '1';
-                }}
-              >
-                Forgot password?
-              </a>
-            </div>
-
-            {/* Submit */}
-            <div data-animate style={{ marginTop: 8 }}>
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  height: 48,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  background: loading ? '#0071e3' : '#0066cc',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  color: '#ffffff',
-                  fontSize: 15,
-                  fontWeight: 400,
-                  fontFamily: 'var(--font-body)',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  transition: 'background 0.2s ease, transform 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    (e.currentTarget as HTMLButtonElement).style.background = '#0071e3';
-                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = '#0066cc';
-                  (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-                }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2
-                      style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }}
-                    />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight style={{ width: 16, height: 16 }} />
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-
-          {/* Divider */}
+        {/* Demo mode notice */}
+        {isDemoMode && (
           <div
             data-animate
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              margin: '32px 0',
+              marginBottom: 24,
+              padding: '14px 16px',
+              background: '#fefce8',
+              border: '1px solid #fef08a',
+              borderRadius: 'var(--radius-lg)',
             }}
           >
-            <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
-            <span style={{ fontSize: 13, color: '#a1a1a6', whiteSpace: 'nowrap' }}>
-              or continue with
-            </span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
+            <p style={{ fontSize: 13, color: '#ca8a04', fontWeight: 600 }}>
+              Demo mode active. Use any credentials to preview.
+            </p>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Email */}
+          <div data-animate>
+            <label htmlFor="email" style={labelStyle}>Email</label>
+            <div style={inputWrapStyle}>
+              <Mail style={inputIconStyle} />
+              <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="input-organic"
+                style={{ paddingLeft: 46 }}
+                autoComplete="email"
+              />
+            </div>
           </div>
 
-          {/* Google sign-in */}
+          {/* Password */}
           <div data-animate>
-            <button
-              type="button"
-              style={{
-                width: '100%',
-                height: 48,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                background: '#ffffff',
-                border: '1px solid rgba(0,0,0,0.08)',
-                borderRadius: '9999px',
-                color: '#1d1d1f',
-                fontSize: 15,
-                fontWeight: 500,
-                fontFamily: 'var(--font-body)',
-                cursor: 'pointer',
-                transition: 'background 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#f5f5f7';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#ffffff';
-              }}
-            >
-              <GoogleIcon />
-              Continue with Google
+            <label htmlFor="password" style={labelStyle}>Password</label>
+            <div style={inputWrapStyle}>
+              <Lock style={inputIconStyle} />
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="input-organic"
+                style={{ paddingLeft: 46, paddingRight: 46 }}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                style={{
+                  position: 'absolute', right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex'
+                }}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Remember me + Forgot password */}
+          <div
+            data-animate
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}
+          >
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--brand-primary)' }}
+              />
+              <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>Remember me</span>
+            </label>
+            <a href="#" style={{ fontSize: 14, color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 700 }}>
+              Forgot password?
+            </a>
+          </div>
+
+          {/* Submit */}
+          <div data-animate style={{ marginTop: 12 }}>
+            <button type="submit" disabled={loading} className="btn-organic btn-primary" style={{ width: '100%', padding: '16px', fontSize: '16px' }}>
+              {loading ? (
+                <><Loader2 size={20} className="animate-spin" /> Signing in...</>
+              ) : (
+                'Sign In'
+              )}
             </button>
           </div>
+        </form>
 
-          {/* Footer link */}
-          <p
-            data-animate
-            style={{
-              marginTop: 32,
-              textAlign: 'center',
-              fontSize: 14,
-              color: '#86868b',
-            }}
-          >
-            Don't have an account?{' '}
-            <Link
-              to="/"
-              style={{
-                color: '#0066cc',
-                textDecoration: 'none',
-                fontWeight: 500,
-              }}
-            >
-              Create one now
-            </Link>
-          </p>
+        {/* Divider */}
+        <div data-animate style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '32px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.06)' }} />
+          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>or sign in with</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.06)' }} />
         </div>
+
+        {/* Google sign-in */}
+        <div data-animate>
+          <button type="button" className="btn-organic btn-secondary" style={{ width: '100%', padding: '16px', fontSize: '15px' }}>
+            <GoogleIcon />
+            Google
+          </button>
+        </div>
+
+        {/* Footer link */}
+        <p data-animate style={{ marginTop: 32, textAlign: 'center', fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
+          Don't have an account?{' '}
+          <Link to="/" style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 700 }}>
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );
 };
+
+export default SignIn;
