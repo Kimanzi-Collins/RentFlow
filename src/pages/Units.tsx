@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PageHeader, DataTable, Button, Card, StatusBadge, Select } from '@/components/ui';
+import { PageHeader, DataTable, Button, Card, CardContent, StatusBadge, Select } from '@/components/ui';
 import { Plus, Search, Home } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { formatCurrency } from '@/lib/utils';
@@ -23,12 +23,12 @@ export const Units: React.FC = () => {
       header: 'Unit',
       render: (value: string, row: UnitWithTenant) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[rgba(255,255,255,0.05)] flex items-center justify-center shrink-0 border border-[var(--color-border)]">
-            <Home size={18} className="text-[var(--color-text-secondary)]" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted shrink-0">
+            <Home size={18} className="text-muted-foreground" />
           </div>
           <div>
-            <p className="font-medium text-white">{value}</p>
-            <p className="text-xs text-[var(--color-text-tertiary)]">{row.bedrooms} Bed, {row.bathrooms} Bath</p>
+            <p className="font-medium">{value}</p>
+            <p className="text-xs text-muted-foreground">{row.bedrooms} Bed, {row.bathrooms} Bath</p>
           </div>
         </div>
       ),
@@ -36,12 +36,12 @@ export const Units: React.FC = () => {
     {
       key: 'rent_amount',
       header: 'Rent',
-      render: (value: number) => <span className="font-mono text-sm text-[var(--color-text-primary)]">{formatCurrency(value)}</span>,
+      render: (value: number) => <span className="font-mono text-sm">{formatCurrency(value)}</span>,
     },
     {
       key: 'status',
       header: 'Status',
-      render: (value: string) => <StatusBadge status={value} dot />,
+      render: (value: string) => <StatusBadge status={value} />,
     },
   ];
 
@@ -62,40 +62,43 @@ export const Units: React.FC = () => {
         }
       />
 
-      <Card padding="md">
-        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
-          <div className="relative flex-1 w-full max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" size={16} />
-            <input
-              type="text"
-              placeholder="Search units..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="glass-input w-full h-10 pl-9 pr-4 text-sm"
-            />
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex flex-col sm:flex-row gap-4 p-4 border-b">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+              <input
+                type="text"
+                placeholder="Search units..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 pl-9 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <Select
+                options={[
+                  { value: '', label: 'All Statuses' },
+                  { value: 'vacant', label: 'Vacant' },
+                  { value: 'occupied', label: 'Occupied' },
+                  { value: 'maintenance', label: 'Maintenance' },
+                ]}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="w-full sm:w-48">
-            <Select
-              options={[
-                { value: '', label: 'All Statuses' },
-                { value: 'vacant', label: 'Vacant' },
-                { value: 'occupied', label: 'Occupied' },
-                { value: 'maintenance', label: 'Maintenance' },
-              ]}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            />
-          </div>
-        </div>
 
-        <DataTable
-          columns={columns}
-          data={filteredUnits}
-          keyExtractor={(row) => row.id}
-          onRowClick={(row) => console.log('Clicked', row)}
-          emptyMessage="No units found matching your search."
-          emptyIcon={Home}
-        />
+          <DataTable
+            columns={columns}
+            data={filteredUnits}
+            keyExtractor={(row) => row.id}
+            onRowClick={(row) => console.log('Clicked', row)}
+            emptyMessage="No units found matching your search."
+            emptyIcon={Home}
+            className="border-0 rounded-none"
+          />
+        </CardContent>
       </Card>
     </div>
   );

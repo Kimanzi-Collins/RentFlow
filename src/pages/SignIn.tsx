@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Lock, Mail, ArrowRight } from 'lucide-react';
-import { Button, Input, Card } from '@/components/ui';
+import { Building2, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
+import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast';
 
@@ -39,146 +39,141 @@ export const SignIn: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] relative overflow-hidden text-[var(--color-text-primary)]">
-      {/* Subtle texture */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 glass-noise mix-blend-overlay opacity-20" />
-      </div>
-
-      <div className="w-full max-w-[1000px] grid md:grid-cols-2 gap-8 p-6 relative z-10 animate-scale-in">
+    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+      <div className="w-full max-w-[1000px] grid md:grid-cols-2 overflow-hidden rounded-2xl bg-background shadow-xl border">
         
         {/* Left Column - Branding */}
-        <div className="hidden md:flex flex-col justify-between p-12 bg-[var(--color-surface)] rounded-3xl border border-[var(--color-border)] relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[rgba(255,255,255,0.02)] to-transparent pointer-events-none" />
-          
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-12">
-              <div className="w-10 h-10 rounded-xl bg-[var(--color-accent)] flex items-center justify-center shadow-lg shadow-[var(--color-accent-glow)]">
-                <Building2 size={24} className="text-white" />
+        <div className="hidden md:flex flex-col justify-between bg-zinc-950 p-12 text-zinc-50">
+          <div>
+            <div className="flex items-center gap-2 mb-12">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Building2 size={18} />
               </div>
-              <span className="font-display font-bold text-2xl tracking-tight text-white">RentFlow</span>
+              <span className="font-bold text-xl tracking-tight">RentFlow</span>
             </div>
             
-            <h1 className="text-display mb-6">Property<br />Management,<br />Reimagined.</h1>
-            <p className="text-body text-[var(--color-text-secondary)] max-w-sm">
+            <h1 className="text-4xl font-bold tracking-tight mb-6">Property<br />Management,<br />Reimagined.</h1>
+            <p className="text-zinc-400 max-w-sm text-sm">
               Streamline rent collection, track payments, manage tenants, and grow your rental business with our premium platform designed for the Kenyan market.
             </p>
           </div>
 
-          <div className="relative z-10">
-            <div className="flex items-center gap-4 text-sm font-medium text-[var(--color-text-tertiary)]">
-              <span>Automated MPESA</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-border-active)]" />
-              <span>Real-time Analytics</span>
-            </div>
+          <div className="flex items-center gap-4 text-sm font-medium text-zinc-500">
+            <span>Automated MPESA</span>
+            <span className="h-1 w-1 rounded-full bg-zinc-700" />
+            <span>Real-time Analytics</span>
           </div>
         </div>
 
         {/* Right Column - Form */}
-        <Card variant="strong" padding="lg" className="w-full max-w-md mx-auto rounded-3xl backdrop-blur-[40px] shadow-2xl">
-          <div className="mb-8 text-center md:text-left">
-            <h2 className="text-headline mb-2">{isLogin ? 'Welcome back' : 'Create account'}</h2>
-            <p className="text-body-sm">
-              {isLogin ? 'Enter your credentials to access your dashboard.' : 'Sign up to start managing your properties.'}
-            </p>
-            {isDemoMode && (
-              <div className="mt-4 p-3 bg-[var(--color-warning-muted)] border border-[var(--color-warning)]/20 rounded-lg text-xs text-[var(--color-warning)] flex items-start gap-2 text-left">
-                <span className="shrink-0 mt-0.5">ℹ️</span>
-                <span>Running in Demo Mode (Supabase credentials missing). You can sign in with any email and password.</span>
-              </div>
-            )}
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {!isLogin && (
-              <Input
-                label="Full Name"
-                placeholder="John Doe"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-            )}
-            
-            <Input
-              label="Email Address"
-              type="email"
-              icon={Mail}
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            
-            <div>
-              <Input
-                label="Password"
-                type="password"
-                icon={Lock}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              {isLogin && (
-                <div className="flex justify-end mt-2">
-                  <a href="#" className="text-xs font-medium hover:underline">Forgot password?</a>
+        <div className="flex flex-col justify-center p-8 md:p-12">
+          <div className="mx-auto w-full max-w-sm">
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold tracking-tight">{isLogin ? 'Welcome back' : 'Create an account'}</h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                {isLogin ? 'Enter your credentials to access your dashboard.' : 'Sign up to start managing your properties.'}
+              </p>
+              {isDemoMode && (
+                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    <strong>Demo Mode:</strong> Supabase credentials missing. Sign in with any email and password to preview the UI.
+                  </p>
                 </div>
               )}
             </div>
 
-            {!isLogin && (
-              <div className="space-y-1.5">
-                <label className="text-label text-[var(--color-text-secondary)]">Role</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRole('landlord')}
-                    className={`p-3 rounded-xl border text-sm font-medium transition-all ${
-                      role === 'landlord'
-                        ? 'bg-[var(--color-accent-muted)] border-[var(--color-accent)] text-[var(--color-accent)]'
-                        : 'glass-subtle text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]'
-                    }`}
-                  >
-                    Landlord
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('caretaker')}
-                    className={`p-3 rounded-xl border text-sm font-medium transition-all ${
-                      role === 'caretaker'
-                        ? 'bg-[var(--color-accent-muted)] border-[var(--color-accent)] text-[var(--color-accent)]'
-                        : 'glass-subtle text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]'
-                    }`}
-                  >
-                    Caretaker
-                  </button>
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <Input
+                  label="Full Name"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              )}
+              
+              <Input
+                label="Email Address"
+                type="email"
+                icon={Mail}
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              
+              <div>
+                <Input
+                  label="Password"
+                  type="password"
+                  icon={Lock}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                {isLogin && (
+                  <div className="flex justify-end mt-2">
+                    <a href="#" className="text-xs font-medium text-primary hover:underline">Forgot password?</a>
+                  </div>
+                )}
               </div>
-            )}
 
-            <Button
-              type="submit"
-              size="lg"
-              fullWidth
-              isLoading={loading}
-              rightIcon={<ArrowRight size={18} />}
-              className="mt-6"
-            >
-              {isLogin ? 'Sign In' : 'Create Account'}
-            </Button>
-          </form>
+              {!isLogin && (
+                <div className="space-y-2 pt-2">
+                  <label className="text-sm font-medium leading-none">Role</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRole('landlord')}
+                      className={`rounded-md border p-3 text-sm font-medium transition-colors ${
+                        role === 'landlord'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-input bg-background hover:bg-muted'
+                      }`}
+                    >
+                      Landlord
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('caretaker')}
+                      className={`rounded-md border p-3 text-sm font-medium transition-colors ${
+                        role === 'caretaker'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-input bg-background hover:bg-muted'
+                      }`}
+                    >
+                      Caretaker
+                    </button>
+                  </div>
+                </div>
+              )}
 
-          <div className="mt-8 text-center text-sm text-[var(--color-text-secondary)]">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)] transition-colors"
-            >
-              {isLogin ? 'Sign up' : 'Sign in'}
-            </button>
+              <Button
+                type="submit"
+                size="lg"
+                fullWidth
+                isLoading={loading}
+                rightIcon={<ArrowRight size={18} />}
+                className="mt-2"
+              >
+                {isLogin ? 'Sign In' : 'Create Account'}
+              </Button>
+            </form>
+
+            <div className="mt-8 text-center text-sm text-muted-foreground">
+              {isLogin ? "Don't have an account? " : "Already have an account? "}
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="font-medium text-foreground hover:underline"
+              >
+                {isLogin ? 'Sign up' : 'Sign in'}
+              </button>
+            </div>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

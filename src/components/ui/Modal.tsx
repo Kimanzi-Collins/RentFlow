@@ -49,22 +49,20 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return createPortal(
-    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <Card
-        variant="strong"
-        padding="none"
-        className={cn('w-full flex flex-col max-h-[90vh] animate-scale-in', sizes[size])}
+        className={cn('w-full flex flex-col max-h-[90vh] bg-background shadow-lg', sizes[size])}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || description) && (
-          <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-start justify-between shrink-0">
+          <div className="px-6 py-4 border-b flex items-start justify-between shrink-0">
             <div>
-              {title && <h2 className="text-title">{title}</h2>}
-              {description && <p className="text-caption mt-1">{description}</p>}
+              {title && <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>}
+              {description && <p className="text-sm text-muted-foreground mt-1.5">{description}</p>}
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <X size={20} />
             </button>
@@ -72,20 +70,20 @@ export const Modal: React.FC<ModalProps> = ({
         )}
         
         {!title && !description && (
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-1 z-10 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
-            >
-              <X size={20} />
-            </button>
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1 z-10 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <X size={20} />
+          </button>
         )}
 
-        <div className="p-6 overflow-y-auto custom-scrollbar">
+        <div className="p-6 overflow-y-auto">
           {children}
         </div>
 
         {footer && (
-          <div className="px-6 py-4 border-t border-[var(--color-border)] bg-[rgba(0,0,0,0.2)] shrink-0 flex items-center justify-end gap-3">
+          <div className="px-6 py-4 border-t bg-muted/20 shrink-0 flex items-center justify-end gap-3">
             {footer}
           </div>
         )}

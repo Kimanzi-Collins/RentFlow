@@ -1,6 +1,6 @@
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LucideIcon } from 'lucide-react';
 
 export interface EmptyStateProps {
   icon?: LucideIcon;
@@ -18,15 +18,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className,
 }) => {
   return (
-    <div className={cn('empty-state animate-fade-in', className)}>
+    <div className={cn('flex flex-col items-center justify-center p-8 text-center', className)}>
       {Icon && (
-        <div className="empty-state-icon">
+        <div className="mb-4 rounded-full bg-muted p-4 text-muted-foreground">
           <Icon size={32} />
         </div>
       )}
-      <h3 className="text-title mb-2">{title}</h3>
+      <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
       {description && (
-        <p className="text-body-sm text-center max-w-md mb-6">{description}</p>
+        <p className="mt-2 mb-6 text-sm text-muted-foreground max-w-sm">{description}</p>
       )}
       {action && <div>{action}</div>}
     </div>

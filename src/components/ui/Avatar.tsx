@@ -10,19 +10,19 @@ export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
   ({ className, name = '', src, size = 'md', ...props }, ref) => {
     const sizes = {
-      xs: 'w-6 h-6 text-[0.625rem]',
-      sm: 'w-8 h-8 text-xs',
-      md: 'w-10 h-10 text-sm',
-      lg: 'w-12 h-12 text-base',
-      xl: 'w-16 h-16 text-xl',
+      xs: 'h-6 w-6 text-[0.625rem]',
+      sm: 'h-8 w-8 text-xs',
+      md: 'h-10 w-10 text-sm',
+      lg: 'h-12 w-12 text-base',
+      xl: 'h-16 w-16 text-xl',
     };
 
     const gradientClasses = [
-      'from-blue-500 to-cyan-500',
-      'from-purple-500 to-pink-500',
-      'from-amber-500 to-orange-500',
-      'from-emerald-500 to-teal-500',
-      'from-rose-500 to-red-500',
+      'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+      'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
     ];
 
     const gradientClass = useMemo(() => {
@@ -35,15 +35,15 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
       <div
         ref={ref}
         className={cn(
-          'relative inline-flex items-center justify-center rounded-[var(--radius-full)] overflow-hidden shrink-0 border border-[var(--color-border)]',
+          'relative flex shrink-0 overflow-hidden rounded-full',
           sizes[size],
-          !src && `bg-gradient-to-br ${gradientClass} text-white font-medium`,
+          !src && `${gradientClass} items-center justify-center font-medium`,
           className
         )}
         {...props}
       >
         {src ? (
-          <img src={src} alt={name || 'Avatar'} className="w-full h-full object-cover" />
+          <img src={src} alt={name || 'Avatar'} className="aspect-square h-full w-full object-cover" />
         ) : (
           <span>{getInitials(name) || '?'}</span>
         )}

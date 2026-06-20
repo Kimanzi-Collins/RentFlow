@@ -1,6 +1,4 @@
-import React, { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
+import React from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from './Skeleton';
 import { EmptyState } from './EmptyState';
@@ -35,34 +33,15 @@ export function DataTable<T>({
   keyExtractor,
   className,
 }: DataTableProps<T>) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const tbodyRef = useRef<HTMLTableSectionElement>(null);
-
-  useGSAP(() => {
-    if (!isLoading && data.length > 0 && tbodyRef.current) {
-      const rows = tbodyRef.current.children;
-      gsap.fromTo(
-        rows,
-        { opacity: 0, y: 10 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.4,
-          stagger: 0.05,
-          ease: 'power2.out',
-        }
-      );
-    }
-  }, [isLoading, data.length]);
-
+  
   if (isLoading) {
     return (
-      <div className={cn('w-full overflow-x-auto custom-scrollbar', className)}>
-        <table className="data-table">
-          <thead>
+      <div className="rounded-md border">
+        <table className="w-full text-sm text-left">
+          <thead className="border-b bg-muted/50">
             <tr>
               {columns.map((col, i) => (
-                <th key={String(col.key) + i} style={{ width: col.width, textAlign: col.align || 'left' }}>
+                <th key={String(col.key) + i} className="h-12 px-4 text-muted-foreground font-medium" style={{ width: col.width, textAlign: col.align || 'left' }}>
                   {col.header}
                 </th>
               ))}
@@ -70,10 +49,10 @@ export function DataTable<T>({
           </thead>
           <tbody>
             {Array.from({ length: 5 }).map((_, idx) => (
-              <tr key={`skeleton-${idx}`}>
+              <tr key={`skeleton-${idx}`} className="border-b">
                 {columns.map((col, colIdx) => (
-                  <td key={`skeleton-col-${colIdx}`} style={{ textAlign: col.align || 'left' }}>
-                    <Skeleton className="h-5 w-full max-w-[80%] rounded" />
+                  <td key={`skeleton-col-${colIdx}`} className="p-4" style={{ textAlign: col.align || 'left' }}>
+                    <Skeleton className="h-4 w-full max-w-[80%]" />
                   </td>
                 ))}
               </tr>
@@ -86,35 +65,38 @@ export function DataTable<T>({
 
   if (data.length === 0) {
     return (
-      <div className={cn('w-full border border-[var(--color-border)] rounded-[var(--radius-lg)] bg-[var(--color-surface)]', className)}>
+      <div className={cn('rounded-md border bg-card p-8', className)}>
         <EmptyState icon={emptyIcon} title="No Records" description={emptyMessage} />
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className={cn('w-full overflow-x-auto custom-scrollbar', className)}>
-      <table className="data-table mobile-card-layout">
-        <thead>
+    <div className={cn("rounded-md border overflow-x-auto", className)}>
+      <table className="w-full text-sm text-left">
+        <thead className="border-b bg-muted/50">
           <tr>
             {columns.map((col, i) => (
-              <th key={String(col.key) + i} style={{ width: col.width, textAlign: col.align || 'left' }}>
+              <th key={String(col.key) + i} className="h-12 px-4 text-muted-foreground font-medium align-middle" style={{ width: col.width, textAlign: col.align || 'left' }}>
                 {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody ref={tbodyRef}>
+        <tbody>
           {data.map((row) => (
             <tr
               key={keyExtractor(row)}
               onClick={() => onRowClick?.(row)}
-              className={cn(onRowClick && 'cursor-pointer')}
+              className={cn(
+                "border-b transition-colors hover:bg-muted/50",
+                onRowClick && 'cursor-pointer'
+              )}
             >
               {columns.map((col, i) => (
                 <td
                   key={String(col.key) + i}
-                  data-label={col.header}
+                  className="p-4 align-middle"
                   style={{ textAlign: col.align || 'left' }}
                 >
                   {col.render

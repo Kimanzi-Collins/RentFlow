@@ -1,9 +1,7 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card } from './Card';
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
+import { Card, CardContent } from './Card';
 
 export interface StatCardProps {
   label: string;
@@ -28,83 +26,53 @@ export const StatCard: React.FC<StatCardProps> = ({
   className,
   isCurrency = false,
 }) => {
-  const valueRef = useRef<HTMLDivElement>(null);
-
-  useGSAP(() => {
-    if (!isLoading && valueRef.current && typeof value === 'number') {
-      const obj = { val: 0 };
-      gsap.to(obj, {
-        val: value,
-        duration: 1.5,
-        ease: 'power3.out',
-        onUpdate: () => {
-          if (valueRef.current) {
-            if (isCurrency) {
-              valueRef.current.innerText = new Intl.NumberFormat('en-KE', {
-                style: 'currency',
-                currency: 'KES',
-                maximumFractionDigits: 0,
-              }).format(obj.val);
-            } else {
-              valueRef.current.innerText = Math.round(obj.val).toString();
-            }
-          }
-        },
-      });
-    }
-  }, [value, isLoading, isCurrency]);
+  const formattedValue = typeof value === 'number' && isCurrency 
+    ? new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(value)
+    : value;
 
   return (
-    <Card
-      padding="lg"
-      className={cn('stat-card', `stat-card--${variant}`, className)}
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-label text-[var(--color-text-secondary)] mb-1">{label}</p>
-          <div className="flex items-baseline gap-2">
-            {isLoading ? (
-              <div className="h-8 w-24 bg-[rgba(255,255,255,0.05)] rounded animate-pulse" />
-            ) : (
-              <h3
-                ref={valueRef}
-                className={cn('text-3xl font-bold tracking-tight', isCurrency ? 'text-amount' : '')}
-              >
-                {typeof value === 'string' ? value : ''}
-              </h3>
+    <Card className={cn(className)}>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">{label}</p>
+            <div className="flex items-baseline gap-2">
+              {isLoading ? (
+                <div className="h-8 w-24 bg-muted rounded animate-pulse" />
+              ) : (
+                <h3 className="text-2xl font-bold tracking-tight">
+                  {formattedValue}
+                </h3>
+              )}
+            </div>
+            
+            {(change !== undefined || changeLabel) && !isLoading && (
+              <div className="flex items-center gap-1.5 mt-2">
+                {change !== undefined && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center text-xs font-medium',
+                      change > 0 ? 'text-green-600 dark:text-green-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+                    )}
+                  >
+                    {change > 0 ? <TrendingUp size={14} className="mr-1" /> : change < 0 ? <TrendingDown size={14} className="mr-1" /> : null}
+                    {Math.abs(change)}%
+                  </span>
+                )}
+                {changeLabel && (
+                  <span className="text-xs text-muted-foreground">{changeLabel}</span>
+                )}
+              </div>
             )}
           </div>
           
-          {(change !== undefined || changeLabel) && !isLoading && (
-            <div className="flex items-center gap-1.5 mt-2">
-              {change !== undefined && (
-                <span
-                  className={cn(
-                    'inline-flex items-center text-xs font-medium',
-                    change > 0 ? 'text-[var(--color-success)]' : change < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'
-                  )}
-                >
-                  {change > 0 ? <TrendingUp size={14} className="mr-1" /> : change < 0 ? <TrendingDown size={14} className="mr-1" /> : null}
-                  {Math.abs(change)}%
-                </span>
-              )}
-              {changeLabel && (
-                <span className="text-xs text-[var(--color-text-tertiary)]">{changeLabel}</span>
-              )}
+          {Icon && (
+            <div className="p-2.5 rounded-full bg-primary/10 text-primary">
+              <Icon size={20} />
             </div>
           )}
         </div>
-        
-        {Icon && (
-          <div className={cn(
-            'p-3 rounded-[var(--radius-lg)]',
-            `bg-[var(--color-${variant === 'default' ? 'accent' : variant}-muted)]`,
-            `text-[var(--color-${variant === 'default' ? 'accent' : variant})]`
-          )}>
-            <Icon size={24} />
-          </div>
-        )}
-      </div>
+      </CardContent>
     </Card>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PageHeader, DataTable, Button, Card, StatusBadge, Avatar } from '@/components/ui';
+import { PageHeader, DataTable, Button, Card, CardContent, StatusBadge, Avatar } from '@/components/ui';
 import { Plus, Search, Users, Phone } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { formatCurrency, formatPhone } from '@/lib/utils';
@@ -24,8 +24,8 @@ export const Tenants: React.FC = () => {
         <div className="flex items-center gap-3">
           <Avatar name={row.full_name} size="sm" />
           <div>
-            <p className="font-medium text-white">{row.full_name}</p>
-            <p className="text-xs text-[var(--color-text-tertiary)]">{row.email || 'No email'}</p>
+            <p className="font-medium text-foreground">{row.full_name}</p>
+            <p className="text-xs text-muted-foreground">{row.email || 'No email'}</p>
           </div>
         </div>
       ),
@@ -34,8 +34,8 @@ export const Tenants: React.FC = () => {
       key: 'phone',
       header: 'Contact',
       render: (value: string) => (
-        <div className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]">
-          <Phone size={14} className="text-[var(--color-text-tertiary)]" />
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Phone size={14} />
           {formatPhone(value)}
         </div>
       ),
@@ -43,13 +43,13 @@ export const Tenants: React.FC = () => {
     {
       key: 'status',
       header: 'Status',
-      render: (value: string) => <StatusBadge status={value} dot />,
+      render: (value: string) => <StatusBadge status={value} />,
     },
     {
       key: 'balance',
-      header: 'Outstanding Balance',
+      header: 'Balance',
       render: (value: number) => (
-        <span className={`font-mono text-sm font-medium ${value > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'}`}>
+        <span className={`font-mono text-sm font-medium ${value > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
           {formatCurrency(value)}
         </span>
       ),
@@ -69,28 +69,31 @@ export const Tenants: React.FC = () => {
         }
       />
 
-      <Card padding="md">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" size={16} />
-            <input
-              type="text"
-              placeholder="Search tenants..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="glass-input w-full h-10 pl-9 pr-4 text-sm"
-            />
+      <Card>
+        <CardContent className="p-0">
+          <div className="p-4 border-b">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+              <input
+                type="text"
+                placeholder="Search tenants..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 pl-9 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
           </div>
-        </div>
 
-        <DataTable
-          columns={columns}
-          data={MOCK_TENANTS.filter(t => t.full_name.toLowerCase().includes(search.toLowerCase()))}
-          keyExtractor={(row) => row.id}
-          onRowClick={(row) => console.log('Clicked', row)}
-          emptyMessage="No tenants found matching your search."
-          emptyIcon={Users}
-        />
+          <DataTable
+            columns={columns}
+            data={MOCK_TENANTS.filter(t => t.full_name.toLowerCase().includes(search.toLowerCase()))}
+            keyExtractor={(row) => row.id}
+            onRowClick={(row) => console.log('Clicked', row)}
+            emptyMessage="No tenants found matching your search."
+            emptyIcon={Users}
+            className="border-0 rounded-none"
+          />
+        </CardContent>
       </Card>
     </div>
   );

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { PageHeader, StatCard, Card, Badge, Avatar } from '@/components/ui';
-import { Building2, Home, Users, CreditCard, TrendingUp, AlertCircle, Droplets, ReceiptText, Wrench } from 'lucide-react';
+import { PageHeader, StatCard, Card, CardContent, CardHeader, CardTitle, Avatar } from '@/components/ui';
+import { Home, Users, CreditCard, TrendingUp, AlertCircle, Droplets, ReceiptText, Wrench } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import { formatCurrency, formatRelativeTime, cn } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/utils';
 import type { DashboardStats, RecentActivity } from '@/types';
 
-// Mock Data for Demo
 const MOCK_STATS: DashboardStats = {
   total_properties: 4,
   total_units: 48,
@@ -34,7 +33,6 @@ export const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API fetch
     const timer = setTimeout(() => {
       setStats(MOCK_STATS);
       setActivities(MOCK_ACTIVITIES);
@@ -44,16 +42,15 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title={`Welcome back, ${profile?.full_name?.split(' ')[0] || 'Admin'}`}
         description="Here's what's happening with your properties today."
       />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Total Revenue (Monthly)"
+          label="Total Revenue"
           value={stats?.total_revenue || 0}
           isCurrency
           icon={TrendingUp}
@@ -61,16 +58,14 @@ export const Dashboard: React.FC = () => {
           isLoading={isLoading}
           change={12.5}
           changeLabel="vs last month"
-          className="animate-fade-up stagger-1"
         />
         <StatCard
-          label="Collected Revenue"
+          label="Collected"
           value={stats?.collected_revenue || 0}
           isCurrency
           icon={CreditCard}
           variant="default"
           isLoading={isLoading}
-          className="animate-fade-up stagger-2"
         />
         <StatCard
           label="Overdue Amount"
@@ -79,7 +74,6 @@ export const Dashboard: React.FC = () => {
           icon={AlertCircle}
           variant="danger"
           isLoading={isLoading}
-          className="animate-fade-up stagger-3"
         />
         <StatCard
           label="Occupancy Rate"
@@ -88,167 +82,150 @@ export const Dashboard: React.FC = () => {
           icon={Home}
           variant="info"
           isLoading={isLoading}
-          className="animate-fade-up stagger-4"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Main Content Area (Charts / Tables) */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card padding="lg" className="animate-fade-up stagger-5 min-h-[300px]">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-title">Revenue Overview</h3>
-              <select className="bg-[rgba(255,255,255,0.05)] border border-[var(--color-border)] rounded-md px-2 py-1 text-xs">
+        <div className="lg:col-span-2 space-y-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base">Revenue Overview</CardTitle>
+              <select className="h-8 w-[120px] rounded-md border border-input bg-background px-3 text-xs">
                 <option>This Year</option>
                 <option>Last Year</option>
               </select>
-            </div>
-            
-            {/* Simple CSS Bar Chart Placeholder */}
-            {isLoading ? (
-              <div className="flex h-48 items-end justify-between gap-2 animate-pulse">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="w-full bg-[rgba(255,255,255,0.05)] rounded-t-md" style={{ height: `${Math.max(20, Math.random() * 100)}%` }} />
-                ))}
-              </div>
-            ) : (
-              <div className="flex h-48 items-end justify-between gap-2">
-                {[40, 65, 45, 80, 55, 90].map((height, i) => (
-                  <div key={i} className="w-full relative group">
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-surface-3)] text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-[var(--color-border)]">
-                      KES {Math.round(height * 20000).toLocaleString()}
-                    </div>
-                    <div 
-                      className="w-full bg-gradient-to-t from-[var(--color-accent-muted)] to-[var(--color-accent)] rounded-t-[var(--radius-sm)] chart-bar" 
-                      style={{ height: `${height}%` }}
-                    />
-                    <div className="text-center text-[10px] text-[var(--color-text-tertiary)] mt-2 uppercase font-medium tracking-wider">
-                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][i]}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <Card padding="md" className="animate-fade-up stagger-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium">Quick Actions</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-[var(--color-border)] hover:bg-[rgba(255,255,255,0.03)] hover:border-[var(--color-border-hover)] transition-all">
-                  <ReceiptText size={20} className="text-[var(--color-accent)]" />
-                  <span className="text-xs font-medium">Record Payment</span>
-                </button>
-                <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-[var(--color-border)] hover:bg-[rgba(255,255,255,0.03)] hover:border-[var(--color-border-hover)] transition-all">
-                  <Droplets size={20} className="text-[var(--color-info)]" />
-                  <span className="text-xs font-medium">Meter Reading</span>
-                </button>
-                <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-[var(--color-border)] hover:bg-[rgba(255,255,255,0.03)] hover:border-[var(--color-border-hover)] transition-all">
-                  <Users size={20} className="text-[var(--color-success)]" />
-                  <span className="text-xs font-medium">Add Tenant</span>
-                </button>
-                <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-[var(--color-border)] hover:bg-[rgba(255,255,255,0.03)] hover:border-[var(--color-border-hover)] transition-all">
-                  <AlertCircle size={20} className="text-[var(--color-warning)]" />
-                  <span className="text-xs font-medium">Send Reminders</span>
-                </button>
-              </div>
-            </Card>
-            
-            <Card padding="md" className="animate-fade-up stagger-7">
-               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium">Collection Progress</h3>
-              </div>
-              <div className="flex items-end justify-between mb-2">
-                <div className="text-2xl font-bold font-mono text-[var(--color-success)]">
-                  {stats?.collection_rate || 0}%
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex h-[200px] items-end justify-between gap-2 mt-4">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="w-full bg-muted rounded-t-sm animate-pulse" style={{ height: `${Math.max(20, Math.random() * 100)}%` }} />
+                  ))}
                 </div>
-                <div className="text-xs text-[var(--color-text-tertiary)] mb-1">
-                  of KES {(stats?.total_revenue || 0).toLocaleString()} expected
-                </div>
-              </div>
-              <div className="progress-bar mb-6">
-                <div 
-                  className="progress-bar-fill bg-[var(--color-success)]" 
-                  style={{ width: `${stats?.collection_rate || 0}%` }} 
-                />
-              </div>
-
-              <h4 className="text-xs font-medium text-[var(--color-text-secondary)] mb-3 uppercase tracking-wider">Top Overdue Accounts</h4>
-              <div className="space-y-3">
-                {[1, 2].map((i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Avatar name={`Tenant ${i}`} size="sm" />
-                      <div>
-                        <p className="text-sm">Tenant {i}</p>
-                        <p className="text-[10px] text-[var(--color-danger)]">{i * 5} days overdue</p>
+              ) : (
+                <div className="flex h-[200px] items-end justify-between gap-2 mt-4">
+                  {[40, 65, 45, 80, 55, 90].map((height, i) => (
+                    <div key={i} className="w-full relative group flex flex-col items-center">
+                      <div className="w-full bg-primary/20 hover:bg-primary transition-colors rounded-t-sm" style={{ height: `${height}%` }} />
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][i]}
                       </div>
                     </div>
-                    <span className="text-sm font-mono font-medium">KES {(25000 * i).toLocaleString()}</span>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="flex flex-col items-center justify-center gap-2 p-3 rounded-md border bg-card hover:bg-muted transition-colors">
+                    <ReceiptText size={18} className="text-muted-foreground" />
+                    <span className="text-xs font-medium">Payment</span>
+                  </button>
+                  <button className="flex flex-col items-center justify-center gap-2 p-3 rounded-md border bg-card hover:bg-muted transition-colors">
+                    <Droplets size={18} className="text-muted-foreground" />
+                    <span className="text-xs font-medium">Meter</span>
+                  </button>
+                  <button className="flex flex-col items-center justify-center gap-2 p-3 rounded-md border bg-card hover:bg-muted transition-colors">
+                    <Users size={18} className="text-muted-foreground" />
+                    <span className="text-xs font-medium">Tenant</span>
+                  </button>
+                  <button className="flex flex-col items-center justify-center gap-2 p-3 rounded-md border bg-card hover:bg-muted transition-colors">
+                    <AlertCircle size={18} className="text-muted-foreground" />
+                    <span className="text-xs font-medium">Reminders</span>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Collection Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline justify-between mb-2">
+                  <div className="text-3xl font-bold tracking-tight text-green-600 dark:text-green-500">
+                    {stats?.collection_rate || 0}%
                   </div>
-                ))}
-              </div>
+                  <div className="text-xs text-muted-foreground">
+                    of KES {(stats?.total_revenue || 0).toLocaleString()}
+                  </div>
+                </div>
+                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden mb-6">
+                  <div className="h-full bg-green-500" style={{ width: `${stats?.collection_rate || 0}%` }} />
+                </div>
+
+                <div className="space-y-4">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={`Tenant ${i}`} size="xs" />
+                        <div>
+                          <p className="text-sm font-medium">Tenant {i}</p>
+                          <p className="text-xs text-red-500">{i * 5} days overdue</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium">KES {(25000 * i).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
             </Card>
           </div>
         </div>
 
-        {/* Sidebar (Activity Feed) */}
         <div className="space-y-6">
-          <Card padding="md" className="animate-fade-up stagger-5 h-full">
-            <h3 className="font-medium mb-6">Recent Activity</h3>
-            
-            {isLoading ? (
-              <div className="space-y-6">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex gap-4">
-                    <div className="w-8 h-8 rounded-full bg-[rgba(255,255,255,0.05)] animate-pulse shrink-0" />
-                    <div className="space-y-2 flex-1">
-                      <div className="h-4 w-3/4 bg-[rgba(255,255,255,0.05)] rounded animate-pulse" />
-                      <div className="h-3 w-1/2 bg-[rgba(255,255,255,0.05)] rounded animate-pulse" />
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="text-base">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-6">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex gap-4">
+                      <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
+                      <div className="space-y-2 flex-1">
+                        <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
+                        <div className="h-3 w-1/2 bg-muted rounded animate-pulse" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="relative">
-                <div className="absolute left-4 top-0 bottom-0 w-px bg-[var(--color-border)]" />
-                <div className="space-y-6 relative">
-                  {activities.map((activity, i) => {
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-8 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-muted before:to-transparent">
+                  {activities.map((activity) => {
                     let Icon = CreditCard;
-                    let colorClass = 'text-[var(--color-success)] bg-[var(--color-success-muted)]';
                     
-                    if (activity.type === 'lease') {
-                      Icon = Users;
-                      colorClass = 'text-[var(--color-info)] bg-[var(--color-info-muted)]';
-                    } else if (activity.type === 'meter_reading') {
-                      Icon = Droplets;
-                      colorClass = 'text-[var(--color-accent)] bg-[var(--color-accent-muted)]';
-                    } else if (activity.type === 'maintenance') {
-                      Icon = Wrench;
-                      colorClass = 'text-[var(--color-warning)] bg-[var(--color-warning-muted)]';
-                    }
+                    if (activity.type === 'lease') Icon = Users;
+                    else if (activity.type === 'meter_reading') Icon = Droplets;
+                    else if (activity.type === 'maintenance') Icon = Wrench;
 
                     return (
-                      <div key={activity.id} className="flex gap-4 relative">
-                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-[var(--color-surface)] ring-4 ring-[var(--color-surface)] z-10', colorClass)}>
+                      <div key={activity.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-background bg-muted text-muted-foreground shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10">
                           <Icon size={14} />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium">{activity.title}</p>
-                          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{activity.description}</p>
-                          <p className="text-[10px] text-[var(--color-text-tertiary)] mt-1.5 uppercase font-medium tracking-wider">
+                        <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] pl-4 md:pl-0 md:group-odd:text-right md:group-even:pl-8">
+                          <p className="text-sm font-semibold">{activity.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{activity.description}</p>
+                          <time className="block text-[10px] font-medium text-muted-foreground mt-2 uppercase tracking-wider">
                             {formatRelativeTime(new Date(activity.timestamp))}
-                          </p>
+                          </time>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+            </CardContent>
           </Card>
         </div>
       </div>

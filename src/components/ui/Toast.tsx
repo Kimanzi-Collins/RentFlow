@@ -3,9 +3,8 @@ import { createPortal } from 'react-dom';
 import { create } from 'zustand';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Toast as ToastType, ToastType as ToastVariant } from '@/types';
+import type { Toast as ToastType } from '@/types';
 
-// Toast Store
 interface ToastStore {
   toasts: ToastType[];
   addToast: (toast: Omit<ToastType, 'id'>) => void;
@@ -23,7 +22,6 @@ export const useToastStore = create<ToastStore>((set) => ({
   },
 }));
 
-// Hook for components
 export const useToast = () => {
   const addToast = useToastStore((state) => state.addToast);
   
@@ -36,49 +34,30 @@ export const useToast = () => {
   };
 };
 
-// Toast Item Component
 const ToastItem: React.FC<{ toast: ToastType; onRemove: (id: string) => void }> = ({ toast, onRemove }) => {
-  const [isLeaving, setIsLeaving] = useState(false);
-
   useEffect(() => {
     const duration = toast.duration || 5000;
-    const timer = setTimeout(() => {
-      setIsLeaving(true);
-      setTimeout(() => onRemove(toast.id), 300); // Wait for exit animation
-    }, duration);
-
+    const timer = setTimeout(() => onRemove(toast.id), duration);
     return () => clearTimeout(timer);
   }, [toast, onRemove]);
 
-  const handleClose = () => {
-    setIsLeaving(true);
-    setTimeout(() => onRemove(toast.id), 300);
-  };
-
   const icons = {
-    success: <CheckCircle className="text-[var(--color-success)]" size={20} />,
-    error: <AlertCircle className="text-[var(--color-danger)]" size={20} />,
-    warning: <AlertTriangle className="text-[var(--color-warning)]" size={20} />,
-    info: <Info className="text-[var(--color-info)]" size={20} />,
+    success: <CheckCircle className="text-green-500" size={20} />,
+    error: <AlertCircle className="text-red-500" size={20} />,
+    warning: <AlertTriangle className="text-yellow-500" size={20} />,
+    info: <Info className="text-blue-500" size={20} />,
   };
 
   return (
-    <div
-      className={cn(
-        'glass pointer-events-auto w-full max-w-sm rounded-[var(--radius-lg)] p-4 shadow-lg flex items-start gap-3 transition-all duration-300',
-        isLeaving ? 'opacity-0 translate-x-full' : 'animate-slide-left'
-      )}
-    >
+    <div className="pointer-events-auto w-full max-w-sm rounded-lg border bg-background p-4 shadow-lg flex items-start gap-3">
       <div className="shrink-0 mt-0.5">{icons[toast.type]}</div>
       <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">{toast.title}</h4>
-        {toast.description && (
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{toast.description}</p>
-        )}
+        <h4 className="text-sm font-semibold">{toast.title}</h4>
+        {toast.description && <p className="mt-1 text-sm text-muted-foreground">{toast.description}</p>}
       </div>
       <button
-        onClick={handleClose}
-        className="shrink-0 p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+        onClick={() => onRemove(toast.id)}
+        className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       >
         <X size={16} />
       </button>
@@ -86,7 +65,6 @@ const ToastItem: React.FC<{ toast: ToastType; onRemove: (id: string) => void }> 
   );
 };
 
-// Toast Provider Component
 export const ToastProvider: React.FC = () => {
   const toasts = useToastStore((state) => state.toasts);
   const removeToast = useToastStore((state) => state.removeToast);

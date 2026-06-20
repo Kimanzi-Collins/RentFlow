@@ -18,8 +18,8 @@ export interface TabsProps {
 
 export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onChange, className }) => {
   return (
-    <div className={cn('flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2 sm:pb-0', className)}>
-      <div className="flex bg-[rgba(255,255,255,0.03)] p-1 rounded-[var(--radius-full)] border border-[var(--color-border)]">
+    <div className={cn('flex items-center overflow-x-auto pb-2 sm:pb-0', className)}>
+      <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -29,23 +29,16 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onChange, className
               key={tab.id}
               onClick={() => onChange(tab.id)}
               className={cn(
-                'relative flex items-center justify-center px-4 py-1.5 text-sm font-medium rounded-[var(--radius-full)] transition-all duration-300',
+                'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
                 isActive
-                  ? 'text-white bg-[var(--color-surface-3)] shadow-sm'
-                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[rgba(255,255,255,0.02)]'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'hover:bg-muted/80 hover:text-foreground'
               )}
             >
-              {Icon && <Icon size={16} className={cn('mr-2', isActive ? 'text-[var(--color-accent)]' : '')} />}
+              {Icon && <Icon size={16} className={cn('mr-2')} />}
               {tab.label}
               {tab.count !== undefined && (
-                <span
-                  className={cn(
-                    'ml-2 px-1.5 py-0.5 text-[0.625rem] rounded-[var(--radius-full)]',
-                    isActive
-                      ? 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]'
-                      : 'bg-[rgba(255,255,255,0.05)] text-[var(--color-text-tertiary)]'
-                  )}
-                >
+                <span className={cn('ml-2 px-1.5 py-0.5 text-xs rounded-full bg-primary/10 text-primary')}>
                   {tab.count}
                 </span>
               )}
