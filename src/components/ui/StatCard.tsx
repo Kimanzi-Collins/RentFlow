@@ -21,7 +21,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   change,
   changeLabel,
   icon: Icon,
-  variant = 'default',
+  variant: _variant = 'default',
   isLoading = false,
   className,
   isCurrency = false,

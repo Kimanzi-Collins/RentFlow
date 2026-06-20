@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
+import { Landing } from '@/pages/Landing';
 import { SignIn } from '@/pages/SignIn';
 import { Dashboard } from '@/pages/Dashboard';
 import { Properties } from '@/pages/Properties';
@@ -9,12 +10,12 @@ import { Units } from '@/pages/Units';
 import { Payments } from '@/pages/Payments';
 import { MeterReadings } from '@/pages/MeterReadings';
 import { Settings } from '@/pages/Settings';
+import { Maintenance } from '@/pages/Maintenance';
 import { useAuthStore, useIsAuthenticated } from '@/stores/authStore';
-import { Loader2 } from 'lucide-react';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/sign-in" replace />;
   }
@@ -31,9 +32,9 @@ export function App() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-bg)]">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent)] mb-4" />
-        <p className="text-[var(--color-text-secondary)] font-medium tracking-wide text-sm">INITIALIZING...</p>
+      <div className="app-loader">
+        <div className="app-loader__ring" />
+        <p className="app-loader__label">Initializing…</p>
       </div>
     );
   }
@@ -41,9 +42,12 @@ export function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public Landing Page */}
+        <Route path="/" element={<Landing />} />
+
         {/* Auth Routes */}
         <Route path="/sign-in" element={<SignIn />} />
-        
+
         {/* Protected Routes */}
         <Route
           path="/dashboard"
@@ -53,7 +57,7 @@ export function App() {
             </ProtectedLayout>
           }
         />
-        
+
         <Route
           path="/properties/*"
           element={
@@ -62,7 +66,7 @@ export function App() {
             </ProtectedLayout>
           }
         />
-        
+
         <Route
           path="/units/*"
           element={
@@ -71,7 +75,7 @@ export function App() {
             </ProtectedLayout>
           }
         />
-        
+
         <Route
           path="/tenants/*"
           element={
@@ -80,7 +84,7 @@ export function App() {
             </ProtectedLayout>
           }
         />
-        
+
         <Route
           path="/meter-readings"
           element={
@@ -89,7 +93,7 @@ export function App() {
             </ProtectedLayout>
           }
         />
-        
+
         <Route
           path="/payments"
           element={
@@ -103,14 +107,11 @@ export function App() {
           path="/maintenance"
           element={
             <ProtectedLayout>
-              <div className="text-center py-20 animate-fade-up">
-                <h2 className="text-headline mb-2">Maintenance</h2>
-                <p className="text-body-sm text-[var(--color-text-secondary)]">Coming soon.</p>
-              </div>
+              <Maintenance />
             </ProtectedLayout>
           }
         />
-        
+
         <Route
           path="/settings"
           element={
@@ -119,10 +120,9 @@ export function App() {
             </ProtectedLayout>
           }
         />
-        
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+        {/* Catch-all → Landing */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

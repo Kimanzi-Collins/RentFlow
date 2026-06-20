@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Card } from './Card';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -14,81 +14,137 @@ export interface ModalProps {
   footer?: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  description,
-  size = 'md',
-  children,
-  footer,
-}) => {
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+const SIZE_MAP = {
+  sm:  480,
+  md:  560,
+  lg:  720,
+  xl:  960,
+};
 
+export const Modal: React.FC<ModalProps> = ({
+  isOpen, onClose, title, description,
+  size = 'md', children, footer,
+}) => {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef    = useRef<HTMLDivElement>(null);
+
+  /* ── Lock body scroll ──────────────────────────────────────────────────── */
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleKey);
       document.body.style.overflow = 'hidden';
     }
-
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'auto';
+      document.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = '';
     };
   }, [isOpen, onClose]);
 
+  /* ── GSAP entrance ─────────────────────────────────────────────────────── */
+  useGSAP(() => {
+    if (!isOpen || !backdropRef.current || !panelRef.current) return;
+    gsap.fromTo(backdropRef.current,
+      { opacity: 0 },
+      { opacity: 1, duration: 0.2, ease: 'power2.out' }
+    );
+    gsap.fromTo(panelRef.current,
+      { opacity: 0, y: 24, scale: 0.97 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.35,
+        ease: 'cubic-bezier(0.16, 1, 0.3, 1)', delay: 0.05 }
+    );
+  }, { dependencies: [isOpen] });
+
   if (!isOpen) return null;
 
-  const sizes = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-  };
+  const maxW = SIZE_MAP[size];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <Card
-        className={cn('w-full flex flex-col max-h-[90vh] bg-background shadow-lg', sizes[size])}
-        onClick={(e) => e.stopPropagation()}
+    <div
+      ref={backdropRef}
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9000,
+        background: 'rgba(0,0,0,0.72)',
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      <div
+        ref={panelRef}
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: maxW,
+          maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          background: '#111827',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 20,
+          boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset',
+          overflow: 'hidden',
+        }}
       >
+        {/* Header */}
         {(title || description) && (
-          <div className="px-6 py-4 border-b flex items-start justify-between shrink-0">
+          <div style={{
+            padding: '20px 24px 16px',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
             <div>
-              {title && <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>}
-              {description && <p className="text-sm text-muted-foreground mt-1.5">{description}</p>}
+              {title && (
+                <h2 style={{
+                  fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 18,
+                  color: '#e2eeff', letterSpacing: '-0.02em', margin: 0,
+                }}>{title}</h2>
+              )}
+              {description && (
+                <p style={{
+                  fontSize: 13, color: 'rgba(226,238,255,0.5)',
+                  marginTop: 4, fontFamily: 'var(--font-sans)',
+                }}>{description}</p>
+              )}
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              style={{
+                width: 32, height: 32, borderRadius: 8, flexShrink: 0, marginLeft: 12,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'rgba(226,238,255,0.5)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              type="button"
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.12)'; e.currentTarget.style.color='rgba(226,238,255,0.9)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.color='rgba(226,238,255,0.5)'; }}
             >
-              <X size={20} />
+              <X style={{ width: 16, height: 16 }} />
             </button>
           </div>
         )}
-        
-        {!title && !description && (
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1 z-10 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <X size={20} />
-          </button>
-        )}
 
-        <div className="p-6 overflow-y-auto">
+        {/* Body */}
+        <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
           {children}
         </div>
 
+        {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t bg-muted/20 shrink-0 flex items-center justify-end gap-3">
+          <div style={{
+            padding: '16px 24px',
+            borderTop: '1px solid rgba(255,255,255,0.07)',
+            background: 'rgba(255,255,255,0.02)',
+            display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10,
+            flexShrink: 0,
+          }}>
             {footer}
           </div>
         )}
-      </Card>
+      </div>
     </div>,
     document.body
   );
 };
+
+export default Modal;

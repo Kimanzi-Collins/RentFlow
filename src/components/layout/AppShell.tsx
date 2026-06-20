@@ -1,35 +1,93 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 import { ToastProvider } from '@/components/ui/Toast';
 
-export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const location = useLocation();
+interface AppShellProps {
+  children: React.ReactNode;
+}
 
-  useEffect(() => {
-    setIsSidebarOpen(false);
+export const AppShell: React.FC<AppShellProps> = ({ children }) => {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Close mobile drawer on route change
+  React.useEffect(() => {
+    setMobileOpen(false);
   }, [location.pathname]);
 
+  // Animate page content on route change
+  useGSAP(
+    () => {
+      if (!mainRef.current) return;
+      gsap.fromTo(
+        mainRef.current,
+        { opacity: 0, y: 16 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: 'power3.out',
+          clearProps: 'opacity,transform',
+        }
+      );
+    },
+    { dependencies: [location.pathname], scope: mainRef }
+  );
+
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
-        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-        
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 pt-6 pb-24 md:pb-8">
-          <div className="mx-auto w-full max-w-7xl animate-fade-in">
-            {children}
-          </div>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        background: 'var(--bg-primary)',
+        overflow: 'hidden',
+      }}
+    >
+      <Sidebar isOpen={mobileOpen} setIsOpen={setMobileOpen} />
+
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
+      >
+        <Topbar onMenuClick={() => setMobileOpen(true)} />
+
+        <main
+          ref={mainRef}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            background: 'var(--bg-primary)',
+            padding: '28px 32px',
+            paddingBottom: 48,
+          }}
+        >
+          <div style={{ maxWidth: 1400, margin: '0 auto' }}>{children}</div>
         </main>
       </div>
 
-      {isSidebarOpen && (
+      {/* Mobile overlay backdrop */}
+      {mobileOpen && (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            zIndex: 35,
+            WebkitBackdropFilter: 'blur(4px)',
+            backdropFilter: 'blur(4px)',
+          }}
         />
       )}
 
@@ -37,3 +95,5 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     </div>
   );
 };
+
+export default AppShell;

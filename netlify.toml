@@ -1,0 +1,30 @@
+# ─── Build Settings ───────────────────────────────────────────────────────────
+[build]
+  command       = "npm run build"
+  publish       = "dist"
+  ignore        = "backend"          # don't try to deploy the Express backend
+
+[build.environment]
+  NODE_VERSION  = "20"
+
+# ─── SPA Routing (React Router) ───────────────────────────────────────────────
+# All routes → index.html so React Router handles them client-side.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# ─── Security Headers ─────────────────────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+    Permissions-Policy     = "camera=(), microphone=(), geolocation=()"
+
+# JS / CSS bundles — cache aggressively (Vite hashes the filenames)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
