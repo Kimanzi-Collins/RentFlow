@@ -1,22 +1,19 @@
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { SignIn } from '@/pages/SignIn';
 import { Dashboard } from '@/pages/Dashboard';
-import { Properties, PropertyDetail } from '@/pages/Properties';
-import { Tenants, TenantDetail } from '@/pages/Tenants';
-import { Units, UnitDetail } from '@/pages/Units';
+import { Properties } from '@/pages/Properties';
+import { Tenants } from '@/pages/Tenants';
+import { Units } from '@/pages/Units';
 import { Payments } from '@/pages/Payments';
 import { MeterReadings } from '@/pages/MeterReadings';
 import { Settings } from '@/pages/Settings';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// RENTFLOW - Property Management Platform for Kenya
-// Premium SaaS UI with iOS 18 Liquid Glass Design
-// ═══════════════════════════════════════════════════════════════════════════
+import { useAuthStore, useIsAuthenticated } from '@/stores/authStore';
+import { Loader2 } from 'lucide-react';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  // In production, this would check Clerk authentication
-  const isAuthenticated = localStorage.getItem('rentflow-auth') === 'true';
+  const isAuthenticated = useIsAuthenticated();
   
   if (!isAuthenticated) {
     return <Navigate to="/sign-in" replace />;
@@ -26,6 +23,21 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 }
 
 export function App() {
+  const { initialize, initialized } = useAuthStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-bg)]">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent)] mb-4" />
+        <p className="text-[var(--color-text-secondary)] font-medium tracking-wide text-sm">INITIALIZING...</p>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>
@@ -43,52 +55,28 @@ export function App() {
         />
         
         <Route
-          path="/properties"
+          path="/properties/*"
           element={
             <ProtectedLayout>
               <Properties />
             </ProtectedLayout>
           }
         />
-        <Route
-          path="/properties/:id"
-          element={
-            <ProtectedLayout>
-              <PropertyDetail />
-            </ProtectedLayout>
-          }
-        />
         
         <Route
-          path="/units"
+          path="/units/*"
           element={
             <ProtectedLayout>
               <Units />
             </ProtectedLayout>
           }
         />
-        <Route
-          path="/units/:id"
-          element={
-            <ProtectedLayout>
-              <UnitDetail />
-            </ProtectedLayout>
-          }
-        />
         
         <Route
-          path="/tenants"
+          path="/tenants/*"
           element={
             <ProtectedLayout>
               <Tenants />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/tenants/:id"
-          element={
-            <ProtectedLayout>
-              <TenantDetail />
             </ProtectedLayout>
           }
         />
@@ -107,6 +95,18 @@ export function App() {
           element={
             <ProtectedLayout>
               <Payments />
+            </ProtectedLayout>
+          }
+        />
+
+        <Route
+          path="/maintenance"
+          element={
+            <ProtectedLayout>
+              <div className="text-center py-20 animate-fade-up">
+                <h2 className="text-headline mb-2">Maintenance</h2>
+                <p className="text-body-sm text-[var(--color-text-secondary)]">Coming soon.</p>
+              </div>
             </ProtectedLayout>
           }
         />

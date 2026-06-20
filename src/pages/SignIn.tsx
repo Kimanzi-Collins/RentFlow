@@ -1,191 +1,187 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GlassCard, Button, Input } from '@/components/ui';
-import { animateCardsIn } from '@/lib/animations';
-import { Building2, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Building2, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Button, Input, Card } from '@/components/ui';
+import { useAuthStore } from '@/stores/authStore';
+import { useToast } from '@/components/ui/Toast';
 
-export function SignIn() {
-  const navigate = useNavigate();
+export const SignIn: React.FC = () => {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (cardRef.current) {
-      animateCardsIn([cardRef.current], { delay: 0.2 });
-    }
-  }, []);
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<'landlord' | 'caretaker'>('landlord');
+  
+  const { signIn, signUp, loading, isDemoMode } = useAuthStore();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    // Simulate authentication - In production, this would call Clerk
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Demo login - accept any credentials
-    if (email && password) {
-      localStorage.setItem('rentflow-auth', 'true');
-      navigate('/dashboard');
+    
+    if (isLogin) {
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast({ type: 'error', title: 'Sign in failed', description: error });
+      } else {
+        toast({ type: 'success', title: 'Welcome back!', description: isDemoMode ? 'Running in demo mode.' : undefined });
+        navigate('/dashboard');
+      }
     } else {
-      setError('Please enter your email and password');
+      const { error } = await signUp(email, password, fullName, role);
+      if (error) {
+        toast({ type: 'error', title: 'Sign up failed', description: error });
+      } else {
+        toast({ type: 'success', title: 'Account created!', description: 'Welcome to RentFlow.' });
+        navigate('/dashboard');
+      }
     }
-    setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Hero */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20">
-          <div className="max-w-lg">
-            {/* Logo */}
-            <div className="flex items-center gap-3 mb-12">
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <Building2 size={28} className="text-white" />
-              </div>
-              <span className="text-2xl font-bold text-white">RentFlow</span>
-            </div>
-
-            {/* Hero Text */}
-            <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-              Modern Property Management System
-            </h1>
-            <p className="text-lg text-blue-100 mb-12">
-              Streamline rent collection, track payments, manage tenants, and grow your rental business with our premium platform.
-            </p>
-
-            {/* Features */}
-            <div className="space-y-4">
-              {[
-                'Automated MPESA payment tracking',
-                'Real-time tenant communication',
-                'Water billing & meter readings',
-                'Comprehensive financial reports',
-              ].map((feature, index) => (
-                <div key={index} className="flex items-center gap-3 text-blue-100">
-                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
-                    <ArrowRight size={12} className="text-white" />
-                  </div>
-                  {feature}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-white/10 to-transparent rounded-tl-full" />
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-xl" />
-        <div className="absolute bottom-40 right-40 w-20 h-20 bg-white/5 rounded-full blur-lg" />
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] relative overflow-hidden text-[var(--color-text-primary)]">
+      {/* Liquid Glass Background Effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[var(--color-accent)] opacity-10 blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500 opacity-10 blur-[120px]" />
+        <div className="absolute inset-0 glass-noise mix-blend-overlay opacity-40" />
       </div>
 
-      {/* Right Panel - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 bg-[var(--color-bg)]">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-blue-600 flex items-center justify-center">
-              <Building2 size={22} className="text-white" />
+      <div className="w-full max-w-[1000px] grid md:grid-cols-2 gap-8 p-6 relative z-10 animate-scale-in">
+        
+        {/* Left Column - Branding */}
+        <div className="hidden md:flex flex-col justify-between p-12 glass-strong rounded-3xl border border-[var(--color-border)] relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[rgba(255,255,255,0.05)] to-transparent pointer-events-none" />
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-12">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-accent)] flex items-center justify-center shadow-lg shadow-[var(--color-accent-glow)]">
+                <Building2 size={24} className="text-white" />
+              </div>
+              <span className="font-display font-bold text-2xl tracking-tight text-white">RentFlow</span>
             </div>
-            <span className="text-xl font-bold text-[var(--color-text-primary)]">RentFlow</span>
+            
+            <h1 className="text-display mb-6">Property<br />Management,<br />Reimagined.</h1>
+            <p className="text-body text-[var(--color-text-secondary)] max-w-sm">
+              Streamline rent collection, track payments, manage tenants, and grow your rental business with our premium platform designed for the Kenyan market.
+            </p>
           </div>
 
-          {/* Form Card */}
-          <div ref={cardRef} style={{ opacity: 0 }}>
-            <GlassCard className="p-8">
-              <div className="text-center mb-8">
-                <h2 className="text-headline text-[var(--color-text-primary)] mb-2">
-                  Welcome back
-                </h2>
-                <p className="text-[var(--color-text-secondary)]">
-                  Sign in to your account to continue
-                </p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {error && (
-                  <div className="p-3 rounded-lg bg-[var(--color-danger-light)] text-[var(--color-danger)] text-sm">
-                    {error}
-                  </div>
-                )}
-
-                <Input
-                  label="Email Address"
-                  type="email"
-                  placeholder="you@example.com"
-                  icon={Mail}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-
-                <Input
-                  label="Password"
-                  type="password"
-                  placeholder="••••••••"
-                  icon={Lock}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-[var(--color-border)]"
-                    />
-                    Remember me
-                  </label>
-                  <a
-                    href="#"
-                    className="text-sm text-[var(--color-accent)] hover:underline"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  loading={isLoading}
-                >
-                  Sign In
-                </Button>
-              </form>
-
-              <div className="mt-6 text-center">
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  Don't have an account?{' '}
-                  <span className="text-[var(--color-text-secondary)]">
-                    Contact your administrator
-                  </span>
-                </p>
-              </div>
-            </GlassCard>
+          <div className="relative z-10">
+            <div className="flex items-center gap-4 text-sm font-medium text-[var(--color-text-tertiary)]">
+              <span>Automated MPESA</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-border-active)]" />
+              <span>Real-time Analytics</span>
+            </div>
           </div>
-
-          {/* Footer */}
-          <p className="text-center text-sm text-[var(--color-text-muted)] mt-8">
-            © {new Date().getFullYear()} Collins Kimanzi Mwandikwa. All rights reserved.
-          </p>
         </div>
+
+        {/* Right Column - Form */}
+        <Card variant="strong" padding="lg" className="w-full max-w-md mx-auto rounded-3xl backdrop-blur-[40px] shadow-2xl">
+          <div className="mb-8 text-center md:text-left">
+            <h2 className="text-headline mb-2">{isLogin ? 'Welcome back' : 'Create account'}</h2>
+            <p className="text-body-sm">
+              {isLogin ? 'Enter your credentials to access your dashboard.' : 'Sign up to start managing your properties.'}
+            </p>
+            {isDemoMode && (
+              <div className="mt-4 p-3 bg-[var(--color-warning-muted)] border border-[var(--color-warning)]/20 rounded-lg text-xs text-[var(--color-warning)] flex items-start gap-2 text-left">
+                <span className="shrink-0 mt-0.5">ℹ️</span>
+                <span>Running in Demo Mode (Supabase credentials missing). You can sign in with any email and password.</span>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <Input
+                label="Full Name"
+                placeholder="John Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            )}
+            
+            <Input
+              label="Email Address"
+              type="email"
+              icon={Mail}
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                icon={Lock}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              {isLogin && (
+                <div className="flex justify-end mt-2">
+                  <a href="#" className="text-xs font-medium hover:underline">Forgot password?</a>
+                </div>
+              )}
+            </div>
+
+            {!isLogin && (
+              <div className="space-y-1.5">
+                <label className="text-label text-[var(--color-text-secondary)]">Role</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('landlord')}
+                    className={`p-3 rounded-xl border text-sm font-medium transition-all ${
+                      role === 'landlord'
+                        ? 'bg-[var(--color-accent-muted)] border-[var(--color-accent)] text-[var(--color-accent)]'
+                        : 'glass-subtle text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]'
+                    }`}
+                  >
+                    Landlord
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('caretaker')}
+                    className={`p-3 rounded-xl border text-sm font-medium transition-all ${
+                      role === 'caretaker'
+                        ? 'bg-[var(--color-accent-muted)] border-[var(--color-accent)] text-[var(--color-accent)]'
+                        : 'glass-subtle text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]'
+                    }`}
+                  >
+                    Caretaker
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              fullWidth
+              isLoading={loading}
+              rightIcon={<ArrowRight size={18} />}
+              className="mt-6"
+            >
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </Button>
+          </form>
+
+          <div className="mt-8 text-center text-sm text-[var(--color-text-secondary)]">
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)] transition-colors"
+            >
+              {isLogin ? 'Sign up' : 'Sign in'}
+            </button>
+          </div>
+        </Card>
       </div>
     </div>
   );
-}
-
-export default SignIn;
+};
