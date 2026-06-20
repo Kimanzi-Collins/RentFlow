@@ -311,7 +311,7 @@ export const Landing: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-col md:flex-row justify-between items-center text-xs text-[#a1a1a6] pt-8 border-t border-white/10">
-          <p>Designed by DeepMind.</p>
+          <p>Designed by Gh0stNode.</p>
           <p>© 2026 Collins Mwandikwa. All rights reserved.</p>
           <p>English</p>
         </div>
