@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader, StatCard, Card, Badge, Avatar } from '@/components/ui';
-import { Building2, Home, Users, CreditCard, TrendingUp, AlertCircle, Droplets, ReceiptText } from 'lucide-react';
+import { Building2, Home, Users, CreditCard, TrendingUp, AlertCircle, Droplets, ReceiptText, Wrench } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import { formatCurrency, formatRelativeTime } from '@/lib/utils';
+import { formatCurrency, formatRelativeTime, cn } from '@/lib/utils';
 import type { DashboardStats, RecentActivity } from '@/types';
 
 // Mock Data for Demo

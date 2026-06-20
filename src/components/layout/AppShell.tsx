@@ -15,11 +15,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   return (
     <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden text-[var(--color-text-primary)]">
-      {/* Background effect */}
+      {/* Subtle texture background */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[rgba(249,115,22,0.15)] via-[var(--color-bg)] to-[var(--color-bg)] opacity-40"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-[rgba(59,130,246,0.1)] via-transparent to-transparent opacity-40"></div>
-        <div className="absolute inset-0 glass-noise mix-blend-overlay opacity-30"></div>
+        <div className="absolute inset-0 glass-noise mix-blend-overlay opacity-20"></div>
       </div>
 
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />

@@ -12,7 +12,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
-  const navRef = useRef<HTMLNavElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
   
   const navItems = [

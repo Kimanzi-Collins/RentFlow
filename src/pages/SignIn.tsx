@@ -40,18 +40,16 @@ export const SignIn: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] relative overflow-hidden text-[var(--color-text-primary)]">
-      {/* Liquid Glass Background Effects */}
+      {/* Subtle texture */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[var(--color-accent)] opacity-10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500 opacity-10 blur-[120px]" />
-        <div className="absolute inset-0 glass-noise mix-blend-overlay opacity-40" />
+        <div className="absolute inset-0 glass-noise mix-blend-overlay opacity-20" />
       </div>
 
       <div className="w-full max-w-[1000px] grid md:grid-cols-2 gap-8 p-6 relative z-10 animate-scale-in">
         
         {/* Left Column - Branding */}
-        <div className="hidden md:flex flex-col justify-between p-12 glass-strong rounded-3xl border border-[var(--color-border)] relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[rgba(255,255,255,0.05)] to-transparent pointer-events-none" />
+        <div className="hidden md:flex flex-col justify-between p-12 bg-[var(--color-surface)] rounded-3xl border border-[var(--color-border)] relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[rgba(255,255,255,0.02)] to-transparent pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-12">

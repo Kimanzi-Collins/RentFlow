@@ -44,7 +44,7 @@ const DEMO_PROFILE: Profile = {
   full_name: 'Bruce Mwikya',
   phone: '+254 712 345 678',
   role: 'landlord',
-  avatar_url: null,
+  avatar_url: undefined,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
