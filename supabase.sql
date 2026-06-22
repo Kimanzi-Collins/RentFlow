@@ -1,8 +1,7 @@
 -- RentFlow Supabase SQL Schema
 -- Covers all app entities: Landlords, Caretakers, Properties, Units, Tenants, Leases, Payments, Maintenance, and Meter Readings.
--- Accounts for synchronizing caretaker with landlord's data via RLS and data structures.
+-- Accounts for synchronizing caretaker with landlord's data via RLS.
 
--- Enable required extensions
 create extension if not exists "uuid-ossp";
 
 -- 1. Profiles Table (Landlords and Caretakers)
@@ -106,15 +105,19 @@ create table maintenance_requests (
   issue_description text not null,
   priority text check (priority in ('low', 'medium', 'high', 'emergency')) default 'medium',
   status text check (status in ('open', 'in_progress', 'resolved', 'closed')) default 'open',
-  assigned_to uuid references profiles(id) on delete set null, -- Can be assigned to a caretaker
+  assigned_to uuid references profiles(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Row Level Security (RLS)
--- Goal: Caretakers can access data belonging to their associated landlord.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ROW LEVEL SECURITY (RLS)
+-- Goal: 
+-- Landlords can do EVERYTHING for their own data.
+-- Caretakers can SELECT everything belonging to their landlord, but can only
+-- INSERT/UPDATE Payments, Meter Readings, and Maintenance.
+-- ─────────────────────────────────────────────────────────────────────────────
 
--- Enable RLS on all tables
 alter table profiles enable row level security;
 alter table properties enable row level security;
 alter table units enable row level security;
@@ -124,7 +127,7 @@ alter table payments enable row level security;
 alter table meter_readings enable row level security;
 alter table maintenance_requests enable row level security;
 
--- Function to get the current user's effective landlord_id
+-- Function to get the current user's effective landlord_id (themselves if landlord, or their landlord's ID if caretaker)
 create or replace function get_effective_landlord_id() returns uuid as $$
   select coalesce(landlord_id, id) from profiles where id = auth.uid();
 $$ language sql stable security definer;
@@ -132,62 +135,64 @@ $$ language sql stable security definer;
 -- Profiles: Landlords can see themselves and their caretakers. Caretakers can see themselves and their landlord.
 create policy "Profiles access" on profiles
   for all
-  using (
-    id = auth.uid() or 
-    landlord_id = auth.uid() or 
-    id = (select landlord_id from profiles where id = auth.uid())
-  );
+  using (id = auth.uid() or landlord_id = auth.uid() or id = (select landlord_id from profiles where id = auth.uid()));
 
--- Properties: Accessible by landlord or caretaker of that landlord
-create policy "Properties access" on properties
-  for all
-  using (landlord_id = get_effective_landlord_id());
+-- Properties: Caretakers can SELECT. Landlords can ALL.
+create policy "Properties select" on properties for select using (landlord_id = get_effective_landlord_id());
+create policy "Properties all" on properties for all using (landlord_id = auth.uid());
 
--- Units: Accessible if the property is accessible
-create policy "Units access" on units
-  for all
-  using (
-    property_id in (select id from properties where landlord_id = get_effective_landlord_id())
-  );
+-- Units: Caretakers can SELECT. Landlords can ALL.
+create policy "Units select" on units for select using (property_id in (select id from properties where landlord_id = get_effective_landlord_id()));
+create policy "Units all" on units for all using (property_id in (select id from properties where landlord_id = auth.uid()));
 
--- Tenants: Accessible by landlord or caretaker
-create policy "Tenants access" on tenants
-  for all
-  using (landlord_id = get_effective_landlord_id());
+-- Tenants: Caretakers can SELECT. Landlords can ALL.
+create policy "Tenants select" on tenants for select using (landlord_id = get_effective_landlord_id());
+create policy "Tenants all" on tenants for all using (landlord_id = auth.uid());
 
--- Leases: Accessible if tenant is accessible
-create policy "Leases access" on leases
-  for all
-  using (
-    tenant_id in (select id from tenants where landlord_id = get_effective_landlord_id())
-  );
+-- Leases: Caretakers can SELECT. Landlords can ALL.
+create policy "Leases select" on leases for select using (tenant_id in (select id from tenants where landlord_id = get_effective_landlord_id()));
+create policy "Leases all" on leases for all using (tenant_id in (select id from tenants where landlord_id = auth.uid()));
 
--- Payments: Accessible if lease is accessible
-create policy "Payments access" on payments
-  for all
-  using (
-    lease_id in (select id from leases where tenant_id in (select id from tenants where landlord_id = get_effective_landlord_id()))
-  );
+-- Payments: Landlord & Caretaker can ALL
+create policy "Payments all" on payments for all using (
+  lease_id in (select id from leases where tenant_id in (select id from tenants where landlord_id = get_effective_landlord_id()))
+);
 
--- Meter Readings: Accessible if unit is accessible
-create policy "Meter Readings access" on meter_readings
-  for all
-  using (
-    unit_id in (select id from units where property_id in (select id from properties where landlord_id = get_effective_landlord_id()))
-  );
+-- Meter Readings: Landlord & Caretaker can ALL
+create policy "Meter Readings all" on meter_readings for all using (
+  unit_id in (select id from units where property_id in (select id from properties where landlord_id = get_effective_landlord_id()))
+);
 
--- Maintenance Requests: Accessible if unit is accessible
-create policy "Maintenance Requests access" on maintenance_requests
-  for all
-  using (
-    unit_id in (select id from units where property_id in (select id from properties where landlord_id = get_effective_landlord_id()))
-  );
+-- Maintenance Requests: Landlord & Caretaker can ALL
+create policy "Maintenance Requests all" on maintenance_requests for all using (
+  unit_id in (select id from units where property_id in (select id from properties where landlord_id = get_effective_landlord_id()))
+);
 
 -- Setup Avatars Storage Bucket
 insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true);
-create policy "Avatar images are publicly accessible."
-  on storage.objects for select
-  using ( bucket_id = 'avatars' );
-create policy "Anyone can upload an avatar."
-  on storage.objects for insert
-  with check ( bucket_id = 'avatars' );
+create policy "Avatar images are publicly accessible." on storage.objects for select using ( bucket_id = 'avatars' );
+create policy "Anyone can upload an avatar." on storage.objects for insert with check ( bucket_id = 'avatars' );
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SETUP INSTRUCTIONS (How to create the Landlord & Caretaker)
+-- ─────────────────────────────────────────────────────────────────────────────
+/*
+1. Run this SQL in your Supabase SQL Editor.
+2. Go to Authentication -> Add User -> Create New User (create the Landlord email/password).
+3. Grab the Landlord's `auth.uid` from the users table.
+4. Go to Authentication -> Add User -> Create New User (create the Caretaker email/password).
+5. Grab the Caretaker's `auth.uid`.
+
+6. Insert the Landlord Profile:
+   insert into profiles (id, role, full_name, email)
+   values ('<LANDLORD_UUID>', 'landlord', 'Main Landlord', 'landlord@demo.com');
+
+7. Insert the Caretaker Profile (linking them to the landlord):
+   insert into profiles (id, role, full_name, email, landlord_id)
+   values ('<CARETAKER_UUID>', 'caretaker', 'Property Caretaker', 'caretaker@demo.com', '<LANDLORD_UUID>');
+
+8. Insert your first empty property (no tenants signed up yet!):
+   insert into properties (landlord_id, name, address, total_units)
+   values ('<LANDLORD_UUID>', 'Sunset Apartments', 'Nairobi, Kenya', 10);
+*/
