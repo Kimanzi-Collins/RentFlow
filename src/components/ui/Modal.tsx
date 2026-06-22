@@ -63,20 +63,22 @@ export const Modal: React.FC<ModalProps> = ({
     <div
       ref={backdropRef}
       onClick={onClose}
+      className="modal-backdrop-wrap"
       style={{
         position: 'fixed', inset: 0, zIndex: 9000,
         background: 'rgba(0,0,0,0.72)',
         backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 16,
+        padding: 'clamp(0px, 4vw, 16px)',
       }}
     >
       <div
         ref={panelRef}
         onClick={e => e.stopPropagation()}
+        className="modal-panel-wrap"
         style={{
           width: '100%', maxWidth: maxW,
-          maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          maxHeight: '92svh', display: 'flex', flexDirection: 'column',
           background: '#111827',
           border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 20,

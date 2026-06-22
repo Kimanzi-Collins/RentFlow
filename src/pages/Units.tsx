@@ -1,147 +1,294 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
-import { Plus, Search, Filter, Home, CheckCircle2, AlertCircle } from 'lucide-react';
-const MOCK_UNITS = [
-  { id: 1, unit_number: 'A-101', type: 'Residential', rent_amount: 35000, status: 'occupied', properties: { name: 'Serra Apartments' } },
-  { id: 2, unit_number: 'B-204', type: 'Residential', rent_amount: 45000, status: 'occupied', properties: { name: 'Serra Apartments' } },
-  { id: 3, unit_number: 'C-301', type: 'Commercial', rent_amount: 120000, status: 'vacant', properties: { name: 'SOJAG Head Office' } },
-];
+import {
+  Plus, Search, Filter, Home, CheckCircle2, AlertCircle,
+  Download, MoreVertical, Eye, Edit3, Trash2,
+} from 'lucide-react';
+import Modal from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
+import { downloadPDF } from '@/lib/export';
+import { useUnitStore } from '@/stores/unitStore';
+import type { Unit } from '@/stores/unitStore';
+import { usePropertyStore } from '@/stores/propertyStore';
+
+const UNIT_TYPES  = ['Residential', 'Commercial', 'Industrial', 'Studio', 'Penthouse'];
+const STATUS_OPTS = ['vacant', 'occupied', 'maintenance'] as const;
+
+const FORM_INIT: Omit<Unit, 'id'> = {
+  unit_number: '', property: '', type: 'Residential', rent_amount: 0, status: 'vacant', tenant: '',
+};
+
+const STATUS_STYLE = {
+  occupied:    { bg: '#ecfdf5', color: '#059669', label: 'Occupied'    },
+  vacant:      { bg: '#fffbeb', color: '#d97706', label: 'Vacant'      },
+  maintenance: { bg: '#fef2f2', color: '#dc2626', label: 'Maintenance' },
+};
+
 export const Units: React.FC = () => {
-  const [units] = useState(MOCK_UNITS);
-  const loading = false;
-  const error = null;
-  const [searchTerm, setSearchTerm] = useState('');
+  const { units, addUnit, updateUnit, removeUnit } = useUnitStore();
+  const { properties } = usePropertyStore();
+  const { success } = useToast();
+
+  const [searchTerm, setSearch]   = useState('');
+  const [statusFilter, setStatus] = useState('all');
+  const [showFilter, setFilter]   = useState(false);
+  const [showAdd, setShowAdd]     = useState(false);
+  const [editUnit, setEdit]       = useState<Unit | null>(null);
+  const [openMenu, setMenu]       = useState<number | null>(null);
+  const [form, setForm]           = useState<Omit<Unit, 'id'>>(FORM_INIT);
+  const [formErr, setFormErr]     = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const filterRef    = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
-      if (!containerRef.current) return;
-      const rows = containerRef.current.querySelectorAll('tbody tr');
-      gsap.fromTo(
-        rows,
-        { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: 0.4, stagger: 0.05, ease: 'power2.out', delay: 0.1 }
+      const rows = containerRef.current?.querySelectorAll('tbody tr');
+      if (rows) gsap.fromTo(rows,
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, duration: 0.38, stagger: 0.05, ease: 'power2.out', delay: 0.1 }
       );
     },
-    { scope: containerRef, dependencies: [units, loading] }
+    { scope: containerRef, dependencies: [units.length, statusFilter, searchTerm] }
   );
 
-  const filtered = units.filter(
-    (u) =>
-      u.unit_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.properties?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilter(false);
+      setMenu(null);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
 
-  const occupiedCount = units.filter((u) => u.status === 'occupied').length;
-  const vacantCount = units.filter((u) => u.status === 'vacant').length;
+  const filtered = units.filter(u => {
+    const q = searchTerm.toLowerCase();
+    const matchSearch = !q || u.unit_number.toLowerCase().includes(q) || u.property.toLowerCase().includes(q) || (u.tenant || '').toLowerCase().includes(q);
+    const matchStatus = statusFilter === 'all' || u.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  function openAdd() {
+    setEdit(null);
+    setForm({ ...FORM_INIT, property: properties[0]?.name || '' });
+    setFormErr('');
+    setShowAdd(true);
+  }
+
+  function openEdit(u: Unit) {
+    setEdit(u);
+    const { id, ...rest } = u;
+    setForm(rest);
+    setFormErr('');
+    setShowAdd(true);
+    setMenu(null);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.unit_number.trim())  { setFormErr('Unit number is required.'); return; }
+    if (!form.property.trim())     { setFormErr('Property is required.'); return; }
+    if (!form.rent_amount || form.rent_amount <= 0) { setFormErr('Valid rent amount is required.'); return; }
+    setFormErr('');
+
+    if (editUnit) {
+      updateUnit(editUnit.id, form);
+      success('Unit updated', `Unit ${form.unit_number} updated.`);
+    } else {
+      addUnit(form);
+      success('Unit added', `Unit ${form.unit_number} added.`);
+    }
+    setShowAdd(false);
+    setEdit(null);
+  }
+
+  function handleDelete(id: number) {
+    const u = units.find(x => x.id === id);
+    removeUnit(id);
+    success('Unit removed', `Unit ${u?.unit_number} removed.`);
+    setMenu(null);
+  }
+
+  function handleExport() {
+    downloadPDF('units-report.pdf', units.map(u => ({
+      'Unit #': u.unit_number, Property: u.property, Type: u.type,
+      'Rent (KES)': u.rent_amount.toLocaleString(), Status: u.status, Tenant: u.tenant || '—',
+    })));
+  }
+
+  const occupied    = units.filter(u => u.status === 'occupied').length;
+  const vacant      = units.filter(u => u.status === 'vacant').length;
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+    <div ref={containerRef} className="page-root">
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: 8 }}>
-            Units
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>
-            Overview of all residential and commercial units.
-          </p>
+          <h1 className="page-title">Units</h1>
+          <p className="page-subtitle">Manage all residential and commercial units.</p>
         </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <div style={{ position: 'relative', width: 260 }}>
-            <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-            <input
-              type="text"
-              placeholder="Search units..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-organic"
-              style={{ paddingLeft: 44 }}
-            />
+        <div className="page-actions">
+          <div style={{ position: 'relative', width: 220 }}>
+            <Search size={15} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+            <input type="text" placeholder="Search units..." value={searchTerm}
+              onChange={e => setSearch(e.target.value)} className="input-organic"
+              style={{ paddingLeft: 38, padding: '10px 14px 10px 38px', fontSize: 13 }} />
           </div>
-          <button className="btn-icon">
-            <Filter size={18} />
-          </button>
-          <button className="btn-organic btn-primary">
-            <Plus size={16} /> Add Unit
+          <div ref={filterRef} style={{ position: 'relative' }}>
+            <button type="button" className="btn-icon" onClick={() => setFilter(v => !v)} title="Filter">
+              <Filter size={17} />
+            </button>
+            {showFilter && (
+              <div className="filter-popover">
+                <div className="filter-section-label">Status</div>
+                <div className="filter-pill-row">
+                  {['all', 'occupied', 'vacant', 'maintenance'].map(s => (
+                    <button type="button" key={s} onClick={() => { setStatus(s); setFilter(false); }}
+                      className={`filter-chip ${statusFilter === s ? 'active' : ''}`}>
+                      {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <button type="button" className="btn-icon" onClick={handleExport} title="Export PDF"><Download size={17} /></button>
+          <button type="button" className="btn-organic btn-primary" onClick={openAdd}>
+            <Plus size={15} /> Add Unit
           </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card-organic" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--brand-primary-light)', color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Home size={24} />
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4" style={{ maxWidth: 520 }}>
+        {[
+          { label: 'Total',    value: units.length, icon: Home,         bg: '#f5f5f5', color: '#171717' },
+          { label: 'Occupied', value: occupied,      icon: CheckCircle2, bg: '#ecfdf5', color: '#059669' },
+          { label: 'Vacant',   value: vacant,        icon: AlertCircle,  bg: '#fffbeb', color: '#d97706' },
+        ].map(s => (
+          <div key={s.label} className="card-organic" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <s.icon size={19} color={s.color} />
+            </div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{s.value}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Units</div>
-            <div style={{ fontSize: 28, fontWeight: 800 }}>{units.length}</div>
-          </div>
-        </div>
-        <div className="card-organic" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Occupied</div>
-            <div style={{ fontSize: 28, fontWeight: 800 }}>{occupiedCount}</div>
-          </div>
-        </div>
-        <div className="card-organic" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: '#fffbeb', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <AlertCircle size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vacant</div>
-            <div style={{ fontSize: 28, fontWeight: 800 }}>{vacantCount}</div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Table */}
       <div className="card-organic" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto', padding: 24 }}>
-          {loading ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>Loading units...</div>
-          ) : error ? (
-            <div style={{ textAlign: 'center', color: '#ef4444', padding: 40 }}>Error: {error.message}</div>
-          ) : (
-            <table className="table-organic w-full">
-              <thead>
-                <tr>
-                  <th>Unit #</th>
-                  <th>Property</th>
-                  <th>Type</th>
-                  <th>Rent (KES)</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((unit) => (
+        <div style={{ overflowX: 'auto', padding: '0 24px 24px' }}>
+          <table className="table-organic w-full">
+            <thead>
+              <tr>
+                <th>Unit #</th>
+                <th>Property</th>
+                <th>Type</th>
+                <th>Tenant</th>
+                <th>Rent (KES)</th>
+                <th>Status</th>
+                <th><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(unit => {
+                const ss = STATUS_STYLE[unit.status];
+                return (
                   <tr key={unit.id}>
                     <td style={{ fontWeight: 700 }}>{unit.unit_number}</td>
-                    <td style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{unit.properties?.name}</td>
-                    <td><span style={{ background: 'var(--surface-hover)', padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600 }}>{unit.type || 'Standard'}</span></td>
-                    <td style={{ fontWeight: 600 }}>KSh {unit.rent_amount?.toLocaleString() || 0}</td>
+                    <td style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 13 }}>{unit.property}</td>
+                    <td><span style={{ background: 'var(--surface-hover)', padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600 }}>{unit.type}</span></td>
+                    <td style={{ fontSize: 13, color: unit.tenant ? 'var(--text-main)' : 'var(--text-muted)' }}>{unit.tenant || '—'}</td>
+                    <td style={{ fontWeight: 700 }}>KSh {unit.rent_amount.toLocaleString()}</td>
                     <td>
-                      <span style={{ 
-                        display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 99, fontSize: 12, fontWeight: 700,
-                        background: unit.status === 'occupied' ? '#ecfdf5' : '#fffbeb',
-                        color: unit.status === 'occupied' ? '#10b981' : '#f59e0b'
-                      }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
-                        {unit.status.charAt(0).toUpperCase() + unit.status.slice(1)}
+                      <span className="badge" style={{ background: ss.bg, color: ss.color }}>
+                        <span className="badge-dot" />{ss.label}
                       </span>
                     </td>
+                    <td>
+                      <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                        <button type="button" className="btn-icon" style={{ width: 30, height: 30, border: 'none' }}
+                          onClick={() => setMenu(openMenu === unit.id ? null : unit.id)}>
+                          <MoreVertical size={14} />
+                        </button>
+                        {openMenu === unit.id && (
+                          <div className="ctx-menu">
+                            <button type="button" className="ctx-menu-item" onClick={() => setMenu(null)}><Eye size={13} /> View</button>
+                            <button type="button" className="ctx-menu-item" onClick={() => openEdit(unit)}><Edit3 size={13} /> Edit</button>
+                            <div style={{ height: 1, background: 'rgba(0,0,0,0.05)', margin: '4px 0' }} />
+                            <button type="button" className="ctx-menu-item danger" onClick={() => handleDelete(unit.id)}><Trash2 size={13} /> Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                );
+              })}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+              No units match your filters.
+            </div>
           )}
         </div>
       </div>
+
+      {/* Add / Edit Modal */}
+      <Modal isOpen={showAdd} onClose={() => { setShowAdd(false); setEdit(null); setFormErr(''); }}
+        title={editUnit ? 'Edit Unit' : 'Add Unit'}
+        description="Configure the unit details.">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {formErr && <div className="modal-error">{formErr}</div>}
+          <div className="modal-form-grid">
+            <div>
+              <label className="modal-label">Unit Number *</label>
+              <input className="modal-input" placeholder="e.g. A-101" value={form.unit_number}
+                onChange={e => setForm(f => ({ ...f, unit_number: e.target.value }))} />
+            </div>
+            <div>
+              <label className="modal-label">Property *</label>
+              <select aria-label="Property" className="modal-input" value={form.property}
+                onChange={e => setForm(f => ({ ...f, property: e.target.value }))}>
+                <option value="">Select property…</option>
+                {properties.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="modal-label">Unit Type</label>
+              <select aria-label="Unit type" className="modal-input" value={form.type}
+                onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
+                {UNIT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="modal-label">Status</label>
+              <select aria-label="Status" className="modal-input" value={form.status}
+                onChange={e => setForm(f => ({ ...f, status: e.target.value as Unit['status'] }))}>
+                {STATUS_OPTS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="modal-label">Monthly Rent (KES) *</label>
+              <input className="modal-input" type="number" min="0" placeholder="e.g. 35000"
+                value={form.rent_amount || ''} onChange={e => setForm(f => ({ ...f, rent_amount: Number(e.target.value) }))} />
+            </div>
+            <div>
+              <label className="modal-label">Current Tenant</label>
+              <input className="modal-input" placeholder="Tenant name (if occupied)" value={form.tenant || ''}
+                onChange={e => setForm(f => ({ ...f, tenant: e.target.value }))} />
+            </div>
+          </div>
+          <div className="modal-form-actions">
+            <button type="button" className="modal-btn-cancel" onClick={() => { setShowAdd(false); setEdit(null); }}>Cancel</button>
+            <button type="submit" className="modal-btn-submit">{editUnit ? 'Save Changes' : 'Add Unit'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

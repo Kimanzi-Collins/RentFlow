@@ -5,30 +5,26 @@ import { Landing } from '@/pages/Landing';
 import { SignIn } from '@/pages/SignIn';
 import { Dashboard } from '@/pages/Dashboard';
 import { Properties } from '@/pages/Properties';
+import { PropertyDetail } from '@/pages/PropertyDetail';
 import { Tenants } from '@/pages/Tenants';
+import { TenantDetail } from '@/pages/TenantDetail';
 import { Units } from '@/pages/Units';
 import { Payments } from '@/pages/Payments';
-import { MeterReadings } from '@/pages/MeterReadings';
+import { WaterBilling } from '@/pages/WaterBilling';
 import { Settings } from '@/pages/Settings';
 import { Maintenance } from '@/pages/Maintenance';
 import { useAuthStore, useIsAuthenticated } from '@/stores/authStore';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/sign-in" replace />;
-  }
-
+  if (!isAuthenticated) return <Navigate to="/sign-in" replace />;
   return <AppShell>{children}</AppShell>;
 }
 
 export function App() {
   const { initialize, initialized } = useAuthStore();
 
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  useEffect(() => { initialize(); }, [initialize]);
 
   if (!initialized) {
     return (
@@ -42,86 +38,33 @@ export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Landing Page */}
+        {/* Public */}
         <Route path="/" element={<Landing />} />
-
-        {/* Auth Routes */}
         <Route path="/sign-in" element={<SignIn />} />
 
-        {/* Protected Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedLayout>
-              <Dashboard />
-            </ProtectedLayout>
-          }
-        />
+        {/* Protected */}
+        <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+        <Route path="/properties" element={<ProtectedLayout><Properties /></ProtectedLayout>} />
+        <Route path="/properties/:id" element={<ProtectedLayout><PropertyDetail /></ProtectedLayout>} />
+        <Route path="/units/*" element={<ProtectedLayout><Units /></ProtectedLayout>} />
 
-        <Route
-          path="/properties/*"
-          element={
-            <ProtectedLayout>
-              <Properties />
-            </ProtectedLayout>
-          }
-        />
+        {/* Tenants — list + detail */}
+        <Route path="/tenants" element={<ProtectedLayout><Tenants /></ProtectedLayout>} />
+        <Route path="/tenants/:id" element={<ProtectedLayout><TenantDetail /></ProtectedLayout>} />
 
-        <Route
-          path="/units/*"
-          element={
-            <ProtectedLayout>
-              <Units />
-            </ProtectedLayout>
-          }
-        />
+        {/* Payments — monthly rent tracking */}
+        <Route path="/payments" element={<ProtectedLayout><Payments /></ProtectedLayout>} />
 
-        <Route
-          path="/tenants/*"
-          element={
-            <ProtectedLayout>
-              <Tenants />
-            </ProtectedLayout>
-          }
-        />
+        {/* Water billing (was /utilities) */}
+        <Route path="/water" element={<ProtectedLayout><WaterBilling /></ProtectedLayout>} />
+        {/* Keep old route working */}
+        <Route path="/utilities" element={<Navigate to="/water" replace />} />
+        <Route path="/meter-readings" element={<Navigate to="/water" replace />} />
 
-        <Route
-          path="/meter-readings"
-          element={
-            <ProtectedLayout>
-              <MeterReadings />
-            </ProtectedLayout>
-          }
-        />
+        <Route path="/maintenance" element={<ProtectedLayout><Maintenance /></ProtectedLayout>} />
+        <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
 
-        <Route
-          path="/payments"
-          element={
-            <ProtectedLayout>
-              <Payments />
-            </ProtectedLayout>
-          }
-        />
-
-        <Route
-          path="/maintenance"
-          element={
-            <ProtectedLayout>
-              <Maintenance />
-            </ProtectedLayout>
-          }
-        />
-
-        <Route
-          path="/settings"
-          element={
-            <ProtectedLayout>
-              <Settings />
-            </ProtectedLayout>
-          }
-        />
-
-        {/* Catch-all → Landing */}
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
