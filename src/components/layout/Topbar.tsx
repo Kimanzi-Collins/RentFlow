@@ -162,9 +162,13 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
               width: 32, height: 32, borderRadius: '50%',
               background: 'var(--brand-primary)', color: '#ffffff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700, flexShrink: 0,
+              fontSize: 12, fontWeight: 700, flexShrink: 0, overflow: 'hidden'
             }}>
-              {initials}
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                initials
+              )}
             </div>
             <span className="hidden sm:block" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
               {profile?.full_name ? profile.full_name.split(' ')[0] : 'Admin'}

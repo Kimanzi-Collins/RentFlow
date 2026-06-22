@@ -956,6 +956,15 @@ body {
 
   /* Auth panels: right panel fills screen, keep form readable */
   .auth-panel-right { padding: 24px 16px !important; }
+
+  /* Make organic tables scrollable horizontally instead of squashing */
+  .table-organic {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
 }
 
 /* ── Mobile modal (bottom-sheet on phones) ───────────────────────────────── */
@@ -963,7 +972,7 @@ body {
 @media (max-width: 480px) {
   body { font-size: 12px; }
   .page-title { font-size: 18px; word-wrap: break-word; hyphens: auto; }
-  .table-organic th, .table-organic td { font-size: 11px; padding: 10px 8px; white-space: normal; word-break: break-word; }
+  .table-organic th, .table-organic td { font-size: 12px; padding: 10px 12px; }
 
   /* On very small screens make modal slide up from bottom */
   .modal-backdrop-wrap {

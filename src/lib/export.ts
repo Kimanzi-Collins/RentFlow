@@ -2,30 +2,78 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { TenantConfig, RentRecord, WaterReading } from '@/stores/billingStore';
 
+// ── Corporate Header Helper ───────────────────────────────────────────────
+function drawCorporateHeader(doc: jsPDF, title: string, subtitle?: string) {
+  // RentFlow Logo Mark (A modern blue square with an "R")
+  doc.setFillColor(14, 116, 144); // Corporate blue
+  doc.roundedRect(14, 14, 12, 12, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('R', 17.5, 22.5);
+
+  // Company Name
+  doc.setTextColor(20, 30, 50); // Dark navy
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RENTFLOW', 30, 21);
+  
+  // Tagline
+  doc.setTextColor(120, 120, 120);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PROPERTY MANAGEMENT', 30, 25);
+
+  // Corporate Address (Right aligned)
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('RentFlow Properties Ltd', 196, 16, { align: 'right' });
+  doc.text('123 Business Park, Nairobi, Kenya', 196, 20, { align: 'right' });
+  doc.text('+254 712 345 678 | admin@rentflow.co.ke', 196, 24, { align: 'right' });
+
+  // Divider Line
+  doc.setDrawColor(230, 230, 230);
+  doc.setLineWidth(0.5);
+  doc.line(14, 32, 196, 32);
+
+  // Document Title
+  doc.setTextColor(20, 30, 50);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(title.toUpperCase(), 14, 42);
+
+  if (subtitle) {
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(subtitle, 14, 48);
+  }
+
+  return subtitle ? 52 : 46; // Return next Y position
+}
+
 // ── Generic flat-table PDF ─────────────────────────────────────────────────
 
 export function downloadPDF(filename: string, rows: Record<string, unknown>[]): void {
   if (!rows.length) return;
   const doc = new jsPDF();
-  const title = filename.replace(/\.(csv|pdf)$/i, '').replace(/-/g, ' ').toUpperCase();
-  doc.setFontSize(16);
-  doc.text('RENTFLOW', 14, 16);
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text(title, 14, 24);
-  doc.setTextColor(0);
+  const title = filename.replace(/\.(csv|pdf)$/i, '').replace(/-/g, ' ');
+  
+  const startY = drawCorporateHeader(doc, title, `Generated on ${new Date().toLocaleDateString()}`);
 
   const headers = Object.keys(rows[0]);
   const data    = rows.map(row => headers.map(h => String(row[h] ?? '')));
 
   autoTable(doc, {
-    startY: 30,
+    startY: startY + 4,
     head: [headers],
     body: data,
     theme: 'grid',
-    styles:     { fontSize: 8, font: 'helvetica' },
-    headStyles: { fillColor: [23, 23, 23], textColor: 255 },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
+    styles:     { fontSize: 8, font: 'helvetica', cellPadding: 4 },
+    headStyles: { fillColor: [245, 245, 245], textColor: [20, 30, 50], fontStyle: 'bold', lineColor: [220, 220, 220], lineWidth: 0.1 },
+    bodyStyles: { textColor: [60, 60, 60], lineColor: [220, 220, 220], lineWidth: 0.1 },
+    alternateRowStyles: { fillColor: [252, 252, 252] },
   });
 
   doc.save(filename.endsWith('.pdf') ? filename : filename.replace(/\.csv$/i, '.pdf'));
@@ -40,66 +88,56 @@ export function downloadTenantStatement(
 ): void {
   const doc = new jsPDF();
 
-  // ── Header block ──────────────────────────────────────────────────────────
-  doc.setFillColor(23, 23, 23);
-  doc.rect(0, 0, 210, 36, 'F');
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RENTFLOW', 14, 14);
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Tenant Statement', 14, 22);
-  doc.text(`Generated: ${new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })}`, 14, 29);
-
-  doc.setTextColor(0);
+  const startY = drawCorporateHeader(doc, 'Tenant Statement', `Generated: ${new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })}`);
 
   // ── Tenant info box ───────────────────────────────────────────────────────
-  doc.setFillColor(248, 248, 248);
-  doc.roundedRect(14, 42, 182, 38, 3, 3, 'F');
+  doc.setFillColor(250, 250, 252);
+  doc.setDrawColor(230, 230, 235);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(14, startY, 182, 34, 2, 2, 'FD');
 
-  doc.setFontSize(13);
+  doc.setTextColor(20, 30, 50);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${tenant.first_name} ${tenant.last_name}`, 20, 52);
+  doc.text(`${tenant.first_name} ${tenant.last_name}`, 20, startY + 9);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80);
-  doc.text(`Unit: ${tenant.unit}`, 20, 60);
-  doc.text(`Property: ${tenant.property}`, 20, 67);
-  doc.text(`Monthly Rent: KSh ${tenant.rent_amount.toLocaleString()}`, 80, 60);
-  doc.text(`Water Rate: KSh ${tenant.water_rate}/m³`, 80, 67);
-  doc.text(`Phone: ${tenant.phone || '—'}`, 140, 60);
-  doc.text(`Email: ${tenant.email || '—'}`, 140, 67);
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Unit: ${tenant.unit}`, 20, startY + 16);
+  doc.text(`Property: ${tenant.property}`, 20, startY + 23);
+  doc.text(`Phone: ${tenant.phone || '—'}`, 20, startY + 30);
+  
+  doc.text(`Email: ${tenant.email || '—'}`, 80, startY + 16);
+  doc.text(`Monthly Rent: KSh ${tenant.rent_amount.toLocaleString()}`, 80, startY + 23);
+  doc.text(`Water Rate: KSh ${tenant.water_rate}/m³`, 80, startY + 30);
 
   // ── Outstanding balance ───────────────────────────────────────────────────
   const totalOutstanding = rentRecords.reduce((s, r) => s + r.balance, 0);
   const totalRentPaid    = rentRecords.reduce((s, r) => s + r.amount_paid, 0);
   const totalWaterBilled = waterReadings.reduce((s, r) => s + r.amount, 0);
 
-  doc.setTextColor(totalOutstanding > 0 ? 220 : 5, totalOutstanding > 0 ? 38 : 150, totalOutstanding > 0 ? 38 : 30);
-  doc.setFontSize(9);
+  doc.setTextColor(totalOutstanding > 0 ? 220 : 20, totalOutstanding > 0 ? 38 : 120, totalOutstanding > 0 ? 38 : 50);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text(
     `Outstanding Balance: KSh ${totalOutstanding.toLocaleString()}`,
-    196, 52, { align: 'right' }
+    190, startY + 16, { align: 'right' }
   );
-  doc.setTextColor(80);
+  doc.setTextColor(80, 80, 80);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Total Rent Paid: KSh ${totalRentPaid.toLocaleString()}`, 196, 60, { align: 'right' });
-  doc.text(`Total Water Billed: KSh ${totalWaterBilled.toLocaleString()}`, 196, 67, { align: 'right' });
-
-  doc.setTextColor(0);
+  doc.text(`Total Rent Paid: KSh ${totalRentPaid.toLocaleString()}`, 190, startY + 23, { align: 'right' });
+  doc.text(`Total Water Billed: KSh ${totalWaterBilled.toLocaleString()}`, 190, startY + 30, { align: 'right' });
 
   // ── Rent history table ────────────────────────────────────────────────────
+  doc.setTextColor(20, 30, 50);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('Rent Payment History', 14, 92);
+  doc.text('Rent Payment History', 14, startY + 46);
 
   autoTable(doc, {
-    startY: 96,
+    startY: startY + 50,
     head: [['Period', 'Rent Due (KES)', 'Paid (KES)', 'Balance (KES)', 'Status']],
     body: rentRecords.map(r => [
       r.period,
@@ -109,16 +147,16 @@ export function downloadTenantStatement(
       r.status.toUpperCase(),
     ]),
     theme: 'grid',
-    styles:     { fontSize: 8 },
-    headStyles: { fillColor: [23, 23, 23], textColor: 255 },
+    styles:     { fontSize: 8, cellPadding: 4 },
+    headStyles: { fillColor: [245, 245, 245], textColor: [20, 30, 50], fontStyle: 'bold', lineColor: [220, 220, 220], lineWidth: 0.1 },
+    bodyStyles: { textColor: [60, 60, 60], lineColor: [220, 220, 220], lineWidth: 0.1 },
+    alternateRowStyles: { fillColor: [252, 252, 252] },
     columnStyles: {
       1: { halign: 'right' },
       2: { halign: 'right' },
       3: { halign: 'right' },
       4: { halign: 'center' },
     },
-    bodyStyles: { textColor: 40 },
-    alternateRowStyles: { fillColor: [250, 250, 250] },
     didParseCell: (data) => {
       if (data.column.index === 4 && data.section === 'body') {
         const val = String(data.cell.raw).toLowerCase();
@@ -137,6 +175,7 @@ export function downloadTenantStatement(
   const afterRentY = (doc as any).lastAutoTable.finalY + 14;
 
   // ── Water billing table ───────────────────────────────────────────────────
+  doc.setTextColor(20, 30, 50);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('Water Billing History', 14, afterRentY);
@@ -154,8 +193,10 @@ export function downloadTenantStatement(
       r.status.toUpperCase(),
     ]),
     theme: 'grid',
-    styles:     { fontSize: 8 },
-    headStyles: { fillColor: [14, 116, 144], textColor: 255 },
+    styles:     { fontSize: 8, cellPadding: 4 },
+    headStyles: { fillColor: [240, 248, 255], textColor: [14, 116, 144], fontStyle: 'bold', lineColor: [220, 220, 220], lineWidth: 0.1 },
+    bodyStyles: { textColor: [60, 60, 60], lineColor: [220, 220, 220], lineWidth: 0.1 },
+    alternateRowStyles: { fillColor: [252, 252, 252] },
     columnStyles: {
       1: { halign: 'right' },
       2: { halign: 'right' },
@@ -164,18 +205,16 @@ export function downloadTenantStatement(
       5: { halign: 'right' },
       6: { halign: 'center' },
     },
-    bodyStyles: { textColor: 40 },
-    alternateRowStyles: { fillColor: [250, 250, 250] },
   });
 
   // ── Footer ────────────────────────────────────────────────────────────────
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(160);
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
     doc.text(
-      `© 2026 Collins Mwandikwa · RentFlow · Page ${i} of ${pageCount}`,
+      `© ${new Date().getFullYear()} RentFlow Properties Ltd · Page ${i} of ${pageCount}`,
       105, 290, { align: 'center' }
     );
   }
@@ -192,47 +231,54 @@ export function downloadPropertyReport(
 ): void {
   const doc = new jsPDF();
 
-  doc.setFillColor(23, 23, 23);
-  doc.rect(0, 0, 210, 36, 'F');
+  const startY = drawCorporateHeader(doc, 'Property Report', `Generated: ${new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })}`);
 
-  doc.setTextColor(255);
-  doc.setFontSize(18);
+  doc.setFillColor(250, 250, 252);
+  doc.setDrawColor(230, 230, 235);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(14, startY, 182, 30, 2, 2, 'FD');
+
+  doc.setTextColor(20, 30, 50);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('RENTFLOW', 14, 14);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Property Report', 14, 22);
-  doc.text(`Generated: ${new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })}`, 14, 29);
-
-  doc.setTextColor(0);
-
-  doc.setFillColor(248, 248, 248);
-  doc.roundedRect(14, 42, 182, 30, 3, 3, 'F');
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.text(property.name, 20, 52);
+  doc.text(property.name, 20, startY + 9);
+  
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80);
-  doc.text(property.address, 20, 60);
-  doc.text(`Type: ${property.type}  ·  ${property.occupied}/${property.total_units} units occupied`, 20, 67);
-  doc.setTextColor(0);
+  doc.setTextColor(80, 80, 80);
+  doc.text(property.address, 20, startY + 16);
+  doc.text(`Type: ${property.type}`, 20, startY + 23);
+  doc.text(`Occupancy: ${property.occupied}/${property.total_units} units`, 90, startY + 23);
 
+  doc.setTextColor(20, 30, 50);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('Tenant Rent Status', 14, 84);
+  doc.text('Tenant Rent Status', 14, startY + 42);
 
   if (tenantRows.length) {
     const headers = Object.keys(tenantRows[0]);
     autoTable(doc, {
-      startY: 88,
+      startY: startY + 46,
       head: [headers],
       body: tenantRows.map(r => headers.map(h => String(r[h] ?? ''))),
       theme: 'grid',
-      styles:     { fontSize: 8 },
-      headStyles: { fillColor: [23, 23, 23], textColor: 255 },
-      alternateRowStyles: { fillColor: [248, 248, 248] },
+      styles:     { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [245, 245, 245], textColor: [20, 30, 50], fontStyle: 'bold', lineColor: [220, 220, 220], lineWidth: 0.1 },
+      bodyStyles: { textColor: [60, 60, 60], lineColor: [220, 220, 220], lineWidth: 0.1 },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
     });
+  }
+  
+  // Footer
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text(
+      `© ${new Date().getFullYear()} RentFlow Properties Ltd · Page ${i} of ${pageCount}`,
+      105, 290, { align: 'center' }
+    );
   }
 
   const dateStr = new Date().toISOString().split('T')[0];
