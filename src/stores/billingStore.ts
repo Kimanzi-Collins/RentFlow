@@ -72,15 +72,31 @@ export function parsePeriodKey(key: string): { year: number; month: number } {
   return { year: y, month: m };
 }
 
+/** Generates every billing period from Jan 2026 up to and including the current month. */
 export function getAvailablePeriods(): { label: string; key: string }[] {
-  const result = [];
-  for (let m = 1; m <= 6; m++) {
-    result.push({ label: makePeriodLabel(2026, m), key: makePeriodKey(2026, m) });
+  const now        = new Date();
+  const curYear    = now.getFullYear();
+  const curMonth   = now.getMonth() + 1; // 1-based
+  const startYear  = 2026;
+  const startMonth = 1;
+
+  const result: { label: string; key: string }[] = [];
+  let y = startYear, m = startMonth;
+
+  while (y < curYear || (y === curYear && m <= curMonth)) {
+    result.push({ label: makePeriodLabel(y, m), key: makePeriodKey(y, m) });
+    m++;
+    if (m > 12) { m = 1; y++; }
   }
+
   return result.reverse(); // most recent first
 }
 
-export const CURRENT_PERIOD_KEY = makePeriodKey(2026, 6);
+/** The billing period matching today's calendar month — updates automatically. */
+export const CURRENT_PERIOD_KEY = (() => {
+  const now = new Date();
+  return makePeriodKey(now.getFullYear(), now.getMonth() + 1);
+})();
 
 // ─── Seed data helpers ────────────────────────────────────────────────────────
 
