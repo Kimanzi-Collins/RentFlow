@@ -36,13 +36,17 @@
 /* ── Reset & Base ────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-body {
+html, body {
   background-color: var(--bg-app);
   color: var(--text-main);
   font-family: var(--font-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  max-width: 100%;
+  width: 100%;
+}
+body {
   background-image:
     radial-gradient(ellipse at 20% 0%, rgba(23,23,23,0.04) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 100%, rgba(23,23,23,0.03) 0%, transparent 50%);
@@ -957,8 +961,9 @@ body {
 /* ── Mobile modal (bottom-sheet on phones) ───────────────────────────────── */
 /* Use .modal-sheet class on the backdrop for bottom-sheet behaviour */
 @media (max-width: 480px) {
-  body { font-size: 13px; }
-  .page-title { font-size: 20px; }
+  body { font-size: 12px; }
+  .page-title { font-size: 18px; word-wrap: break-word; hyphens: auto; }
+  .table-organic th, .table-organic td { font-size: 11px; padding: 10px 8px; white-space: normal; word-break: break-word; }
 
   /* On very small screens make modal slide up from bottom */
   .modal-backdrop-wrap {

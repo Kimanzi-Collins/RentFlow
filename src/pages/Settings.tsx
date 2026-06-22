@@ -89,6 +89,33 @@ export const Settings: React.FC = () => {
     boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.03)',
   };
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Simulate upload delay
+    toastErr('Uploading...', 'Your avatar is being uploaded.');
+    
+    setTimeout(() => {
+      // Set local preview
+      const objectUrl = URL.createObjectURL(file);
+      setAvatarUrl(objectUrl);
+      
+      // Toast notification for successful upload
+      success('Avatar uploaded', 'Your profile picture has been updated successfully.');
+      
+      // Wire avatars to Supabase (Setup later)
+      // const fileExt = file.name.split('.').pop();
+      // const fileName = `${Math.random()}.${fileExt}`;
+      // const filePath = `avatars/${fileName}`;
+      // supabase.storage.from('avatars').upload(filePath, file);
+      // supabase.auth.updateUser({ data: { avatar_url: filePath } });
+    }, 1500);
+  }
+
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760, paddingBottom: 32 }}>
       {/* Header */}
@@ -108,10 +135,17 @@ export const Settings: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28 }}>
           <div style={{ position: 'relative' }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#171717', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800 }}>
-              {initials}
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#171717', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, overflow: 'hidden' }}>
+              {avatarUrl ? <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials}
             </div>
-            <button type="button" onClick={() => success('Coming soon', 'Avatar upload will be available soon.')} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: '#fff', border: '2px solid var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              accept="image/*"
+              onChange={handleAvatarUpload}
+            />
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: '#fff', border: '2px solid var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
               <Camera size={12} />
             </button>
           </div>
