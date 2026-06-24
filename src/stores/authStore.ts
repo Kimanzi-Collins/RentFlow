@@ -29,6 +29,7 @@ interface AuthState {
   // Actions
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signInWithGoogle: () => Promise<{ error?: string }>;
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error?: string }>;
@@ -141,6 +142,34 @@ export const useAuthStore = create<AuthState>()(
           return { error: message };
         } finally {
           set({ loading: false });
+        }
+      },
+
+      signInWithGoogle: async () => {
+        const { isDemoMode } = get();
+
+        if (isDemoMode) {
+          localStorage.setItem('rentflow-auth', 'true');
+          set({ profile: DEMO_PROFILE, error: null });
+          return {};
+        }
+
+        set({ loading: true, error: null });
+
+        try {
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: window.location.origin + '/dashboard',
+            }
+          });
+
+          if (error) throw error;
+          return {};
+        } catch (err) {
+          const message = (err as Error).message;
+          set({ error: message, loading: false });
+          return { error: message };
         }
       },
 

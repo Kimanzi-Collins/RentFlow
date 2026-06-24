@@ -110,6 +110,27 @@ create table maintenance_requests (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 9. Auto-create Profile Trigger (For Google OAuth & standard Sign Up)
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, role, full_name, email, avatar_url)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'role', 'landlord'), -- Default to landlord for OAuth
+    coalesce(new.raw_user_meta_data->>'full_name', coalesce(new.raw_user_meta_data->>'name', 'RentFlow User')),
+    new.email,
+    new.raw_user_meta_data->>'avatar_url'
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- ROW LEVEL SECURITY (RLS)
 -- Goal: 
@@ -180,19 +201,17 @@ create policy "Anyone can upload an avatar." on storage.objects for insert with 
 /*
 1. Run this SQL in your Supabase SQL Editor.
 2. Go to Authentication -> Add User -> Create New User (create the Landlord email/password).
+   - *If using Google Sign In, just sign in with Google once.*
 3. Grab the Landlord's `auth.uid` from the users table.
 4. Go to Authentication -> Add User -> Create New User (create the Caretaker email/password).
 5. Grab the Caretaker's `auth.uid`.
 
-6. Insert the Landlord Profile:
-   insert into profiles (id, role, full_name, email)
-   values ('<LANDLORD_UUID>', 'landlord', 'Main Landlord', 'landlord@demo.com');
+6. Link the Caretaker Profile to the Landlord:
+   update profiles 
+   set landlord_id = '<LANDLORD_UUID>', role = 'caretaker'
+   where id = '<CARETAKER_UUID>';
 
-7. Insert the Caretaker Profile (linking them to the landlord):
-   insert into profiles (id, role, full_name, email, landlord_id)
-   values ('<CARETAKER_UUID>', 'caretaker', 'Property Caretaker', 'caretaker@demo.com', '<LANDLORD_UUID>');
-
-8. Insert your first empty property (no tenants signed up yet!):
+7. Insert your first empty property (no tenants signed up yet!):
    insert into properties (landlord_id, name, address, total_units)
    values ('<LANDLORD_UUID>', 'Sunset Apartments', 'Nairobi, Kenya', 10);
 */

@@ -400,6 +400,10 @@ export const SignIn: React.FC = () => {
             </div>
             <button
               type="button"
+              onClick={async () => {
+                const { error: err } = await useAuthStore.getState().signInWithGoogle();
+                if (err) setError(err);
+              }}
               style={{
                 width: '100%', padding: '13px', borderRadius: 12,
                 background: '#fff', border: '1.5px solid #e5e7eb',

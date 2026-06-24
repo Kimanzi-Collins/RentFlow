@@ -27,15 +27,12 @@ To officially link the Caretaker to the Landlord and set up the first property, 
 **IMPORTANT**: Replace `<LANDLORD_UUID>` and `<CARETAKER_UUID>` with the actual UIDs you copied in Step 2.
 
 ```sql
--- 1. Create the Landlord profile
-insert into profiles (id, role, full_name, email)
-values ('<LANDLORD_UUID>', 'landlord', 'Main Landlord', 'landlord@demo.com');
+-- 1. Link the Caretaker profile to the Landlord
+update profiles 
+set landlord_id = '<LANDLORD_UUID>', role = 'caretaker'
+where id = '<CARETAKER_UUID>';
 
--- 2. Create the Caretaker profile (Linked to the Landlord)
-insert into profiles (id, role, full_name, email, landlord_id)
-values ('<CARETAKER_UUID>', 'caretaker', 'Property Caretaker', 'caretaker@demo.com', '<LANDLORD_UUID>');
-
--- 3. Create your first empty property
+-- 2. Create your first empty property
 insert into properties (landlord_id, name, address, total_units)
 values ('<LANDLORD_UUID>', 'Sunset Apartments', 'Nairobi, Kenya', 10);
 ```
@@ -52,3 +49,4 @@ Once the database is set up and the initial accounts are created, the frontend n
 3. Restart your local development server.
 
 When you're ready to pick up from here, let me know, and we'll proceed with hooking the React frontend state to your live Supabase database!
+Also make sure that the graphs show live data. Like if it's the months one, it shows trend for the last six months from current date. Then if it's day one the blackness shifts depending on the day of the week

@@ -161,14 +161,7 @@ const COLLECTION_DATA = [
   { day: 'Sat', amount: 28 },
 ];
 
-const REVENUE_TREND = [
-  { month: 'Jan', value: 720 },
-  { month: 'Feb', value: 850 },
-  { month: 'Mar', value: 780 },
-  { month: 'Apr', value: 920 },
-  { month: 'May', value: 1050 },
-  { month: 'Jun', value: 850 },
-];
+// Revenue trend is generated dynamically inside the component
 
 const COLLECTION_PIE = [
   { name: 'Collected', value: 87 },
@@ -261,6 +254,20 @@ export const Dashboard: React.FC = () => {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  const currentDayOfWeek = new Date().getDay(); // 0 is Sunday, 6 is Saturday
+
+  const revenueTrend = React.useMemo(() => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currMonth = new Date().getMonth();
+    const trend = [];
+    const values = [720, 850, 780, 920, 1050, 850]; // Static values for a stable visual
+    for (let i = 5; i >= 0; i--) {
+      const m = (currMonth - i + 12) % 12;
+      trend.push({ month: monthNames[m], value: values[5 - i] });
+    }
+    return trend;
+  }, []);
 
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 32 }}>
@@ -376,7 +383,7 @@ export const Dashboard: React.FC = () => {
               <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)', radius: 6 }} />
               <Bar dataKey="amount" radius={[5, 5, 0, 0]}>
                 {COLLECTION_DATA.map((_, i) => (
-                  <Cell key={i} fill={i === 3 ? '#171717' : '#e5e7eb'} />
+                  <Cell key={i} fill={i === currentDayOfWeek ? '#171717' : '#e5e7eb'} />
                 ))}
               </Bar>
             </BarChart>
@@ -393,7 +400,7 @@ export const Dashboard: React.FC = () => {
             <div style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: '#f0fdf4', padding: '4px 10px', borderRadius: 8 }}>↑ 12.5%</div>
           </div>
           <ResponsiveContainer width="100%" height={160}>
-            <AreaChart data={REVENUE_TREND} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
+            <AreaChart data={revenueTrend} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
               <defs>
                 <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="#171717" stopOpacity={0.12} />
