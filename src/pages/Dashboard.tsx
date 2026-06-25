@@ -12,7 +12,6 @@ import {
   ChevronRight, Pause, Square, Wrench, Download, Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import { useBillingStore } from '@/stores/billingStore';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
@@ -207,7 +206,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export const Dashboard: React.FC = () => {
-  const { profile } = useAuthStore();
+  const { profile, sessionStartTime, lastActivity } = useAuthStore();
   const { tenants } = useBillingStore();
   const navigate = useNavigate();
   const { success, info } = useToast();
@@ -232,14 +231,22 @@ export const Dashboard: React.FC = () => {
   const occ88    = useCounter(hasData ? 88 : 0);
   const issues12 = useCounter(hasData ? 12 : 0);
 
-  // Timer state
+  // Timer state based on active session
   const [timerRunning, setTimerRunning] = useState(true);
-  const [timerSec, setTimerSec] = useState(5048);
+  const [timerSec, setTimerSec] = useState(0);
+  
   useEffect(() => {
-    if (!timerRunning) return;
-    const id = setInterval(() => setTimerSec(s => s + 1), 1000);
+    if (!timerRunning || !sessionStartTime) return;
+    
+    // Initial calculation
+    setTimerSec(Math.floor((Date.now() - sessionStartTime) / 1000));
+    
+    const id = setInterval(() => {
+      setTimerSec(Math.floor((Date.now() - sessionStartTime) / 1000));
+    }, 1000);
     return () => clearInterval(id);
-  }, [timerRunning]);
+  }, [timerRunning, sessionStartTime]);
+
   const hh = String(Math.floor(timerSec / 3600)).padStart(2, '0');
   const mm = String(Math.floor((timerSec % 3600) / 60)).padStart(2, '0');
   const ss = String(timerSec % 60).padStart(2, '0');
@@ -534,7 +541,7 @@ export const Dashboard: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Active Session</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Property Review</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>{lastActivity || 'Dashboard view'}</div>
               </div>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 3px rgba(16,185,129,0.2)' }} />
             </div>

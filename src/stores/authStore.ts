@@ -25,6 +25,10 @@ interface AuthState {
   error: string | null;
   /** Whether running in demo mode (no Supabase) */
   isDemoMode: boolean;
+  /** When the current session started (timestamp) */
+  sessionStartTime: number | null;
+  /** Last recorded activity (string description) */
+  lastActivity: string;
 
   // Actions
   initialize: () => Promise<void>;
@@ -35,6 +39,7 @@ interface AuthState {
   updateProfile: (updates: Partial<Profile>) => Promise<{ error?: string }>;
   fetchProfile: () => Promise<void>;
   clearError: () => void;
+  setLastActivity: (activity: string) => void;
 }
 
 /** Demo profile for development without Supabase */
@@ -60,9 +65,16 @@ export const useAuthStore = create<AuthState>()(
       loading: false,
       error: null,
       isDemoMode: !isSupabaseConfigured(),
+      sessionStartTime: null,
+      lastActivity: 'Logged in',
+
+      setLastActivity: (activity: string) => set({ lastActivity: activity }),
 
       initialize: async () => {
-        const { isDemoMode } = get();
+        const { isDemoMode, sessionStartTime } = get();
+
+        // Ensure session time exists if signed in
+        if (!sessionStartTime) set({ sessionStartTime: Date.now() });
 
         if (isDemoMode) {
           // In demo mode, check if user has previously "signed in"
@@ -82,27 +94,23 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true });
 
         try {
-          // Get current session
           const { data: { session }, error } = await supabase.auth.getSession();
 
           if (error) throw error;
 
           if (session?.user) {
-            set({ user: session.user, session });
-            // Fetch profile
+            set({ user: session.user, session, sessionStartTime: Date.now(), lastActivity: 'Logged in' });
             await get().fetchProfile();
           }
 
-          // Listen for auth state changes
           supabase.auth.onAuthStateChange(async (event, session) => {
             set({ user: session?.user ?? null, session });
 
             if (event === 'SIGNED_IN' && session?.user) {
+              set({ sessionStartTime: Date.now(), lastActivity: 'Logged in' });
               await get().fetchProfile();
-            }
-
-            if (event === 'SIGNED_OUT') {
-              set({ profile: null });
+            } else if (event === 'SIGNED_OUT') {
+              set({ user: null, session: null, profile: null, sessionStartTime: null, lastActivity: '' });
             }
           });
         } catch (err) {
@@ -119,21 +127,20 @@ export const useAuthStore = create<AuthState>()(
         if (isDemoMode) {
           // Demo mode sign in — accept any credentials
           localStorage.setItem('rentflow-auth', 'true');
-          set({ profile: DEMO_PROFILE, error: null });
+          set({ 
+            profile: DEMO_PROFILE, 
+            error: null,
+            sessionStartTime: Date.now(),
+            lastActivity: 'Logged in'
+          });
           return {};
         }
 
         set({ loading: true, error: null });
-
         try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
-
-          set({ user: data.user, session: data.session });
+          set({ user: data.user, session: data.session, sessionStartTime: Date.now(), lastActivity: 'Logged in' });
           await get().fetchProfile();
           return {};
         } catch (err) {
@@ -149,21 +156,16 @@ export const useAuthStore = create<AuthState>()(
         const { isDemoMode } = get();
 
         if (isDemoMode) {
-          localStorage.setItem('rentflow-auth', 'true');
-          set({ profile: DEMO_PROFILE, error: null });
-          return {};
+          set({ error: 'Google sign-in is not available in demo mode.' });
+          return { error: 'Not available' };
         }
 
         set({ loading: true, error: null });
-
         try {
           const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: {
-              redirectTo: window.location.origin + '/dashboard',
-            }
+            options: { redirectTo: window.location.origin + '/dashboard' }
           });
-
           if (error) throw error;
           return {};
         } catch (err) {
@@ -173,43 +175,31 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signUp: async (email: string, password: string, fullName: string, role: UserRole) => {
+      signUp: async (email, password, fullName, role) => {
         const { isDemoMode } = get();
-
         if (isDemoMode) {
           localStorage.setItem('rentflow-auth', 'true');
           set({
             profile: { ...DEMO_PROFILE, email, full_name: fullName, role },
             error: null,
+            sessionStartTime: Date.now(),
+            lastActivity: 'Logged in'
           });
           return {};
         }
 
         set({ loading: true, error: null });
-
         try {
           const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: fullName,
-                role,
-              },
-            },
+            email, password,
+            options: { data: { full_name: fullName, role } },
           });
-
           if (error) throw error;
-
-          // Profile is auto-created by the database trigger (handle_new_user)
           if (data.user) {
             set({ user: data.user, session: data.session });
-
-            // Wait briefly for the trigger to create the profile
             await new Promise(resolve => setTimeout(resolve, 1000));
             await get().fetchProfile();
           }
-
           return {};
         } catch (err) {
           const message = (err as Error).message;
@@ -225,13 +215,13 @@ export const useAuthStore = create<AuthState>()(
 
         if (isDemoMode) {
           localStorage.removeItem('rentflow-auth');
-          set({ profile: null, user: null, session: null, error: null });
+          set({ profile: null, user: null, session: null, error: null, sessionStartTime: null, lastActivity: '' });
           return;
         }
 
         try {
           await supabase.auth.signOut();
-          set({ user: null, session: null, profile: null, error: null });
+          set({ user: null, session: null, profile: null, error: null, sessionStartTime: null, lastActivity: '' });
         } catch (err) {
           console.error('Sign out error:', err);
         }
