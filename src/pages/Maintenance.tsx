@@ -369,8 +369,8 @@ export const Maintenance: React.FC = () => {
               { label: 'Description', value: viewTicket.description },
             ].map(row => (
               <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(226,238,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{row.label}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#e2eeff' }}>{row.value}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{row.label}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>{row.value}</span>
               </div>
             ))}
             <div className="modal-form-actions" style={{ marginTop: 8 }}>

@@ -12,6 +12,7 @@ import {
   ChevronRight, Pause, Square, Wrench, Download, Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useBillingStore } from '@/stores/billingStore';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
@@ -145,13 +146,13 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 // ── Data ───────────────────────────────────────────────────────────────────
 
-const OVERDUE_TENANTS = [
+const OVERDUE_TENANTS_DATA = [
   { name: 'James Mwangi',  unit: 'A-104', amount: 18000, days: 14, initials: 'JM', color: '#4f46e5' },
   { name: 'Fatuma Hassan', unit: 'C-301', amount: 25000, days: 9,  initials: 'FH', color: '#ef4444' },
   { name: 'Peter Ochieng', unit: 'B-204', amount: 45000, days: 2,  initials: 'PO', color: '#f59e0b' },
 ];
 
-const COLLECTION_DATA = [
+const COLLECTION_DATA_INIT = [
   { day: 'Sun', amount: 32 },
   { day: 'Mon', amount: 58 },
   { day: 'Tue', amount: 82 },
@@ -161,14 +162,12 @@ const COLLECTION_DATA = [
   { day: 'Sat', amount: 28 },
 ];
 
-// Revenue trend is generated dynamically inside the component
-
-const COLLECTION_PIE = [
+const COLLECTION_PIE_DATA = [
   { name: 'Collected', value: 87 },
   { name: 'Pending',   value: 13 },
 ];
 
-const TASKS = [
+const TASKS_DATA = [
   { icon: CreditCard, label: 'Review Overdue Rent',    date: 'Jun 22, 2026', color: '#4f46e5' },
   { icon: Wrench,     label: 'Fix Plumbing – Unit A1', date: 'Jun 21, 2026', color: '#ef4444' },
   { icon: Users,      label: 'Tenant Onboarding',      date: 'Jun 24, 2026', color: '#f59e0b' },
@@ -209,6 +208,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export const Dashboard: React.FC = () => {
   const { profile } = useAuthStore();
+  const { tenants } = useBillingStore();
   const navigate = useNavigate();
   const { success, info } = useToast();
   const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'Admin';
@@ -218,11 +218,19 @@ export const Dashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef    = useRef<HTMLDivElement>(null);
 
+  // Check if we have data to determine empty states
+  const hasData = tenants.length > 0;
+
+  const OVERDUE_TENANTS = hasData ? OVERDUE_TENANTS_DATA : [];
+  const TASKS = hasData ? TASKS_DATA : [];
+  const COLLECTION_DATA = hasData ? COLLECTION_DATA_INIT : COLLECTION_DATA_INIT.map(d => ({ ...d, amount: 0 }));
+  const COLLECTION_PIE = hasData ? COLLECTION_PIE_DATA : [{ name: 'Pending', value: 100 }];
+
   // Animated counters
-  const props24  = useCounter(24);
-  const rev18    = useCounter(18);
-  const occ88    = useCounter(88);
-  const issues12 = useCounter(12);
+  const props24  = useCounter(hasData ? 24 : 0);
+  const rev18    = useCounter(hasData ? 18 : 0);
+  const occ88    = useCounter(hasData ? 88 : 0);
+  const issues12 = useCounter(hasData ? 12 : 0);
 
   // Timer state
   const [timerRunning, setTimerRunning] = useState(true);
@@ -261,13 +269,13 @@ export const Dashboard: React.FC = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currMonth = new Date().getMonth();
     const trend = [];
-    const values = [720, 850, 780, 920, 1050, 850]; // Static values for a stable visual
+    const values = hasData ? [720, 850, 780, 920, 1050, 850] : [0, 0, 0, 0, 0, 0];
     for (let i = 5; i >= 0; i--) {
       const m = (currMonth - i + 12) % 12;
       trend.push({ month: monthNames[m], value: values[5 - i] });
     }
     return trend;
-  }, []);
+  }, [hasData]);
 
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 32 }}>
@@ -425,7 +433,13 @@ export const Dashboard: React.FC = () => {
             <button type="button" onClick={() => success('Task created', 'New task added to your queue')} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }}>+ New</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {TASKS.map((task, i) => (
+            {TASKS.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
+                <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>Inbox zero</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>No pending tasks for today.</div>
+              </div>
+            ) : TASKS.map((task, i) => (
               <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <task.icon size={17} color={task.color} />
@@ -453,7 +467,13 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {OVERDUE_TENANTS.map((t, i) => (
+            {OVERDUE_TENANTS.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
+                <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>All caught up!</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>No overdue rent at the moment.</div>
+              </div>
+            ) : OVERDUE_TENANTS.map((t, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, borderBottom: i !== OVERDUE_TENANTS.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <div style={{ width: 38, height: 38, borderRadius: '50%', background: t.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>

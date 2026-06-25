@@ -198,7 +198,7 @@ export const Units: React.FC = () => {
               {filtered.map(unit => {
                 const ss = STATUS_STYLE[unit.status];
                 return (
-                  <tr key={unit.id}>
+                  <tr key={unit.id} style={{ position: 'relative', zIndex: openMenu === unit.id ? 50 : 1 }}>
                     <td style={{ fontWeight: 700 }}>{unit.unit_number}</td>
                     <td style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 13 }}>{unit.property}</td>
                     <td><span style={{ background: 'var(--surface-hover)', padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600 }}>{unit.type}</span></td>
@@ -217,10 +217,9 @@ export const Units: React.FC = () => {
                         </button>
                         {openMenu === unit.id && (
                           <div className="ctx-menu">
-                            <button type="button" className="ctx-menu-item" onClick={() => setMenu(null)}><Eye size={13} /> View</button>
-                            <button type="button" className="ctx-menu-item" onClick={() => openEdit(unit)}><Edit3 size={13} /> Edit</button>
+                            <button type="button" className="ctx-menu-item" onClick={() => openEdit(unit)}><Edit3 size={13} /> Edit Unit</button>
                             <div style={{ height: 1, background: 'rgba(0,0,0,0.05)', margin: '4px 0' }} />
-                            <button type="button" className="ctx-menu-item danger" onClick={() => handleDelete(unit.id)}><Trash2 size={13} /> Delete</button>
+                            <button type="button" className="ctx-menu-item danger" onClick={() => handleDelete(unit.id)}><Trash2 size={13} /> Delete Unit</button>
                           </div>
                         )}
                       </div>
@@ -231,8 +230,21 @@ export const Units: React.FC = () => {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-              No units match your filters.
+            <div style={{ padding: '60px 24px', textAlign: 'center', background: '#fff', borderRadius: 20 }}>
+              {searchTerm || statusFilter !== 'all' ? (
+                <span style={{ color: 'var(--text-muted)' }}>No units match your filters.</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Home size={24} color="#9ca3af" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>No units yet</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Add your first unit to a property.</div>
+                  </div>
+                  <button type="button" onClick={openAdd} className="btn-organic btn-primary" style={{ marginTop: 8 }}>+ Add Unit</button>
+                </div>
+              )}
             </div>
           )}
         </div>

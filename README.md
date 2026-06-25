@@ -2,7 +2,7 @@
 
 A premium, production-ready SaaS platform for rental property management, designed specifically for the Kenyan market. Built with modern technologies and featuring an iOS 18 "Liquid Glass" inspired design.
 
-![RentFlow Dashboard](https://via.placeholder.com/1200x600?text=RentFlow+Dashboard)
+![RentFlow Dashboard](/public/dashboard.png)
 
 ## 🌟 Features
 

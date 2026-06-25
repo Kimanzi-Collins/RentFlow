@@ -229,8 +229,21 @@ export const Properties: React.FC = () => {
           );
         })}
         {filtered.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', padding: '60px 24px', textAlign: 'center', background: '#fff', borderRadius: 20, color: 'var(--text-muted)' }}>
-            No properties match "{searchTerm}"
+          <div style={{ gridColumn: '1 / -1', padding: '60px 24px', textAlign: 'center', background: '#fff', borderRadius: 20 }}>
+            {searchTerm ? (
+              <span style={{ color: 'var(--text-muted)' }}>No properties match "{searchTerm}"</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Building2 size={24} color="#9ca3af" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>No properties yet</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Add your first property to get started with RentFlow.</div>
+                </div>
+                <button type="button" onClick={() => setShowAdd(true)} className="btn-organic btn-primary" style={{ marginTop: 8 }}>+ Add Property</button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -79,10 +79,10 @@ export const Modal: React.FC<ModalProps> = ({
         style={{
           width: '100%', maxWidth: maxW,
           maxHeight: '92svh', display: 'flex', flexDirection: 'column',
-          background: '#111827',
-          border: '1px solid rgba(255,255,255,0.1)',
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.06)',
           borderRadius: 20,
-          boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.8) inset',
           overflow: 'hidden',
         }}
       >
@@ -90,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
         {(title || description) && (
           <div style={{
             padding: '20px 24px 16px',
-            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            borderBottom: '1px solid rgba(0,0,0,0.06)',
             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
             flexShrink: 0,
           }}>
@@ -98,12 +98,12 @@ export const Modal: React.FC<ModalProps> = ({
               {title && (
                 <h2 style={{
                   fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 18,
-                  color: '#e2eeff', letterSpacing: '-0.02em', margin: 0,
+                  color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0,
                 }}>{title}</h2>
               )}
               {description && (
                 <p style={{
-                  fontSize: 13, color: 'rgba(226,238,255,0.5)',
+                  fontSize: 13, color: 'var(--text-muted)',
                   marginTop: 4, fontFamily: 'var(--font-sans)',
                 }}>{description}</p>
               )}
@@ -112,14 +112,14 @@ export const Modal: React.FC<ModalProps> = ({
               onClick={onClose}
               style={{
                 width: 32, height: 32, borderRadius: 8, flexShrink: 0, marginLeft: 12,
-                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.05)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: 'rgba(226,238,255,0.5)',
+                cursor: 'pointer', color: 'var(--text-muted)',
                 transition: 'background 0.15s, color 0.15s',
               }}
               type="button"
-              onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.12)'; e.currentTarget.style.color='rgba(226,238,255,0.9)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.color='rgba(226,238,255,0.5)'; }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(0,0,0,0.08)'; e.currentTarget.style.color='var(--text-main)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(0,0,0,0.03)'; e.currentTarget.style.color='var(--text-muted)'; }}
             >
               <X style={{ width: 16, height: 16 }} />
             </button>
@@ -135,8 +135,8 @@ export const Modal: React.FC<ModalProps> = ({
         {footer && (
           <div style={{
             padding: '16px 24px',
-            borderTop: '1px solid rgba(255,255,255,0.07)',
-            background: 'rgba(255,255,255,0.02)',
+            borderTop: '1px solid rgba(0,0,0,0.06)',
+            background: 'rgba(0,0,0,0.01)',
             display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10,
             flexShrink: 0,
           }}>

@@ -4,16 +4,11 @@ import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { User, Shield, Bell, Globe, Palette, ChevronRight, Save, Camera } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface NotifSetting { label: string; description: string; enabled: boolean; }
 
-const NOTIF_INIT: NotifSetting[] = [
-  { label: 'Overdue Rent Alerts',       description: 'Get notified when rent is 3+ days overdue',        enabled: true  },
-  { label: 'Maintenance Updates',       description: 'Receive updates when ticket status changes',         enabled: true  },
-  { label: 'New Tenant Registration',   description: 'Alert when a new tenant is added',                  enabled: true  },
-  { label: 'Monthly Reports',           description: 'Automated PDF report on the 1st of each month',     enabled: false },
-  { label: 'Low Occupancy Warning',     description: 'Alert when occupancy drops below 70%',              enabled: false },
-];
+
 
 const CURRENCIES = ['KES – Kenyan Shilling', 'USD – US Dollar', 'EUR – Euro', 'GBP – British Pound'];
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
@@ -42,8 +37,14 @@ export const Settings: React.FC = () => {
   const [newPwd, setNewPwd]   = useState('');
   const [confPwd, setConfPwd] = useState('');
 
-  // Notifications state
-  const [notifs, setNotifs] = useState<NotifSetting[]>(NOTIF_INIT);
+  const { notifications, updateNotifications } = useSettingsStore();
+
+  const notifsList = [
+    { key: 'overdueRent', label: 'Overdue Rent Alerts', description: 'Get notified when rent is 3+ days overdue' },
+    { key: 'maintenanceUpdates', label: 'Maintenance Updates', description: 'Receive updates when ticket status changes' },
+    { key: 'newTenant', label: 'New Tenant Registration', description: 'Alert when a new tenant is added' },
+    { key: 'lowOccupancy', label: 'Low Occupancy Warning', description: 'Alert when occupancy drops below 70%' },
+  ];
 
   useGSAP(() => {
     const sections = containerRef.current?.querySelectorAll('.settings-section');
@@ -73,12 +74,12 @@ export const Settings: React.FC = () => {
     success('Preferences saved', 'Your system preferences have been updated.');
   }
 
-  function toggleNotif(index: number) {
-    setNotifs(prev => prev.map((n, i) => i === index ? { ...n, enabled: !n.enabled } : n));
+  function toggleNotif(key: keyof typeof notifications) {
+    updateNotifications({ [key]: !notifications[key] });
   }
 
   function handleSaveNotifs() {
-    success('Notifications saved', 'Your notification preferences have been updated.');
+    success('Notifications saved', 'Your notification preferences have been successfully synced.');
   }
 
   const SECTION_STYLE: React.CSSProperties = {
@@ -228,14 +229,14 @@ export const Settings: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {notifs.map((n, i) => (
-            <div key={n.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: i < notifs.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+          {notifsList.map((n, i) => (
+            <div key={n.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: i < notifsList.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{n.label}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{n.description}</div>
               </div>
               <label className="toggle-switch" style={{ flexShrink: 0, marginLeft: 16 }}>
-                <input type="checkbox" checked={n.enabled} onChange={() => toggleNotif(i)} />
+                <input type="checkbox" checked={notifications[n.key as keyof typeof notifications]} onChange={() => toggleNotif(n.key as keyof typeof notifications)} />
                 <span className="toggle-slider" />
               </label>
             </div>

@@ -192,7 +192,7 @@ export const Tenants: React.FC = () => {
               {filtered.map(tenant => {
                 const outstanding = getTenantOutstanding(tenant.id);
                 return (
-                  <tr key={tenant.id}>
+                  <tr key={tenant.id} style={{ position: 'relative', zIndex: openMenu === tenant.id ? 50 : 1 }}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                         <div style={{ width: 36, height: 36, borderRadius: '50%', background: getColor(tenant.id), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
@@ -258,8 +258,21 @@ export const Tenants: React.FC = () => {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-              No tenants match "{searchTerm}"
+            <div style={{ padding: '60px 24px', textAlign: 'center', background: '#fff', borderRadius: 20 }}>
+              {searchTerm ? (
+                <span style={{ color: 'var(--text-muted)' }}>No tenants match "{searchTerm}"</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Users size={24} color="#9ca3af" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>No tenants yet</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Add your first tenant to start tracking rent.</div>
+                  </div>
+                  <button type="button" onClick={openAdd} className="btn-organic btn-primary" style={{ marginTop: 8 }}>+ Add Tenant</button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -272,7 +285,7 @@ export const Tenants: React.FC = () => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {formErr && <div className="modal-error">{formErr}</div>}
 
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(226,238,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Personal Details</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Personal Details</div>
           <div className="modal-form-grid">
             <div><label className="modal-label">First Name *</label><input className="modal-input" placeholder="James" value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
             <div><label className="modal-label">Last Name *</label><input className="modal-input" placeholder="Mwangi" value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
@@ -282,8 +295,8 @@ export const Tenants: React.FC = () => {
             <div><label className="modal-label" htmlFor="t-movein">Move-in Date</label><input id="t-movein" aria-label="Move-in date" title="Move-in date" className="modal-input" type="date" value={form.move_in_date} onChange={e => setForm(f => ({ ...f, move_in_date: e.target.value }))} /></div>
           </div>
 
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(226,238,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Unit & Billing</div>
+          <div style={{ height: 1, background: 'rgba(0,0,0,0.05)', margin: '4px 0' }} />
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Unit & Billing</div>
           <div className="modal-form-grid">
             <div>
               <label className="modal-label">Property *</label>
