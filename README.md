@@ -207,7 +207,7 @@ rentflow/
 - [ ] M-PESA Daraja API — live STK push payment collection
 - [ ] SMS reminders via Africa's Talking — automated overdue alerts
 - [ ] Lease document generator — PDF with e-signature field
-- [ ] Caretaker role — limited-access portal for building managers
+- [x] Caretaker role — limited-access portal for building managers
 - [ ] Mobile app — React Native with offline-first sync
 
 ---

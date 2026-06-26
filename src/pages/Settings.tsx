@@ -263,6 +263,37 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Team & Access (Landlord Only) ── */}
+      {profile?.role === 'landlord' && (
+        <div className="settings-section" style={SECTION_STYLE}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <User size={17} color="#171717" />
+            </div>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Team & Access</h2>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'var(--surface-hover)', borderRadius: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Caretaker Invitation</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Invite a caretaker to manage properties on your behalf.</div>
+            </div>
+            <button
+              type="button"
+              className="btn-organic btn-secondary"
+              style={{ padding: '8px 16px', fontSize: 13, flexShrink: 0, marginLeft: 16 }}
+              onClick={() => {
+                const link = `${window.location.origin}/sign-in?invite=${profile.id}`;
+                navigator.clipboard.writeText(link);
+                success('Invite Link Copied', 'Send this link to your caretaker to let them sign up.');
+              }}
+            >
+              Copy Invite Link
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Security ── */}
       <form className="settings-section" style={SECTION_STYLE} onSubmit={handleSavePassword}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>

@@ -34,7 +34,7 @@ interface AuthState {
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signInWithGoogle: () => Promise<{ error?: string }>;
-  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, fullName: string, role: UserRole, landlordId?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error?: string }>;
   uploadAvatar: (file: File) => Promise<{ error?: string, url?: string }>;
@@ -185,7 +185,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signUp: async (email, password, fullName, role) => {
+      signUp: async (email, password, fullName, role, landlordId) => {
         const { isDemoMode } = get();
         if (isDemoMode) {
           localStorage.setItem('rentflow-auth', 'true');
@@ -202,7 +202,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { data, error } = await supabase.auth.signUp({
             email, password,
-            options: { data: { full_name: fullName, role } },
+            options: { data: { full_name: fullName, role, landlord_id: landlordId } },
           });
           if (error) throw error;
           if (data.user) {
