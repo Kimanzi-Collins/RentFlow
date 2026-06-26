@@ -1,10 +1,10 @@
 <div align="center">
 
 <!-- Animated wave header -->
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0a0a0a,50:1a1a2e,100:16213e&height=220&section=header&text=RentFlow&fontSize=90&fontColor=ffffff&fontAlignY=38&desc=Premium%20Property%20Management%20for%20Kenya&descAlignY=58&descSize=18&descColor=aaaaaa&animation=fadeIn" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:000000,100:4338ca&height=250&section=header&text=RentFlow&fontSize=90&fontColor=ffffff&fontAlignY=38&desc=Premium%20Property%20Management%20for%20Kenya&descAlignY=58&descSize=18&descColor=e0e7ff&animation=scaleIn" width="100%"/>
 
 <!-- Typing animation -->
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Plus+Jakarta+Sans&weight=700&size=20&pause=1000&color=0a0a0a&center=true&vCenter=true&multiline=true&repeat=true&width=650&height=60&lines=Collect+Rent+via+M-PESA+%F0%9F%8F%A0;Track+Water+%26+Utilities+%F0%9F%92%A7;Manage+Tenants+%26+Leases+%F0%9F%93%8B;Generate+PDF+Reports+%F0%9F%93%8A)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Outfit&weight=600&size=24&pause=1000&color=4338ca&center=true&vCenter=true&multiline=true&repeat=true&width=650&height=60&lines=Collect+Rent+via+M-PESA+%F0%9F%8F%A0;Track+Water+%26+Utilities+%F0%9F%92%A7;Manage+Tenants+%26+Leases+%F0%9F%93%8B;Generate+PDF+Reports+%F0%9F%93%8A)](https://git.io/typing-svg)
 
 <br/>
 
@@ -219,7 +219,7 @@ rentflow/
 **Collins Mwandikwa**
 
 [![GitHub](https://img.shields.io/badge/GitHub-@Coll0-181717?style=for-the-badge&logo=github)](https://github.com/Coll0)
-[![Email](https://img.shields.io/badge/Email-mwandikwacollins%40gmail.com-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:mwandikwacollins@gmail.com)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/collins-mwandikwa/)
 
 </div>
 

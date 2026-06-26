@@ -55,7 +55,7 @@ export interface WaterReading {
   amount: number;      // total bill (consumed × rate)
   amount_paid: number; // how much has been paid so far
   balance: number;     // amount - amount_paid
-  status: 'outstanding' | 'paid';
+  status: 'outstanding' | 'partial' | 'paid';
   billed_date: string;
 }
 
@@ -225,7 +225,7 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
       const { data: waterData, error: wErr } = await supabase
         .from('meter_readings')
         .select(`
-          id, reading_date, previous_reading, current_reading, consumption, rate, total_amount, is_billed,
+          id, reading_date, previous_reading, current_reading, consumption, rate, total_amount, is_billed, amount_paid, period, period_key,
           units ( unit_number, leases ( tenant_id ) )
         `)
         .eq('meter_type', 'water');
@@ -254,7 +254,7 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
           amount:      totalAmt,
           amount_paid: paidAmt,
           balance,
-          status: balance <= 0 ? 'paid' : 'outstanding',
+          status: balance <= 0 ? 'paid' : (paidAmt > 0 ? 'partial' : 'outstanding'),
           billed_date: w.reading_date || '',
         };
       });

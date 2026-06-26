@@ -4,13 +4,26 @@ import type { TenantConfig, RentRecord, WaterReading } from '@/stores/billingSto
 
 // ── Corporate Header Helper ───────────────────────────────────────────────
 function drawCorporateHeader(doc: jsPDF, title: string, subtitle?: string) {
-  // RentFlow Logo Mark (A modern blue square with an "R")
-  doc.setFillColor(14, 116, 144); // Corporate blue
-  doc.roundedRect(14, 14, 12, 12, 2, 2, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('R', 17.5, 22.5);
+  // RentFlow Logo Mark (Drawn as vectors to match favicon)
+  doc.setFillColor(10, 10, 10);
+  doc.roundedRect(14, 14, 12, 12, 2.6, 2.6, 'F');
+  
+  // Roof
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.6);
+  doc.line(15.68, 18.87, 20.00, 16.06);
+  doc.line(20.00, 16.06, 24.31, 18.87);
+  
+  // Building body
+  doc.setFillColor(10, 10, 10);
+  doc.setLineWidth(0.56);
+  doc.roundedRect(16.62, 18.68, 6.75, 5.25, 0.45, 0.45, 'FD');
+  
+  // Windows & Door
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(17.56, 19.81, 1.5, 1.31, 0.22, 0.22, 'F');
+  doc.roundedRect(20.93, 19.81, 1.5, 1.31, 0.22, 0.22, 'F');
+  doc.roundedRect(19.06, 21.68, 1.87, 2.25, 0.22, 0.22, 'F');
 
   // Company Name
   doc.setTextColor(20, 30, 50); // Dark navy
@@ -113,22 +126,25 @@ export function downloadTenantStatement(
   doc.text(`Water Rate: KSh ${tenant.water_rate}/m³`, 80, startY + 30);
 
   // ── Outstanding balance ───────────────────────────────────────────────────
-  const totalOutstanding = rentRecords.reduce((s, r) => s + r.balance, 0);
+  const rentOutstanding  = rentRecords.reduce((s, r) => s + r.balance, 0);
+  const waterOutstanding = waterReadings.reduce((s, r) => s + r.balance, 0);
+  const totalOutstanding = rentOutstanding + waterOutstanding;
+  
   const totalRentPaid    = rentRecords.reduce((s, r) => s + r.amount_paid, 0);
-  const totalWaterBilled = waterReadings.reduce((s, r) => s + r.amount, 0);
+  const totalWaterPaid   = waterReadings.reduce((s, r) => s + r.amount_paid, 0);
 
   doc.setTextColor(totalOutstanding > 0 ? 220 : 20, totalOutstanding > 0 ? 38 : 120, totalOutstanding > 0 ? 38 : 50);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text(
-    `Outstanding Balance: KSh ${totalOutstanding.toLocaleString()}`,
+    `Total Outstanding: KSh ${totalOutstanding.toLocaleString()}`,
     190, startY + 16, { align: 'right' }
   );
   doc.setTextColor(80, 80, 80);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(`Total Rent Paid: KSh ${totalRentPaid.toLocaleString()}`, 190, startY + 23, { align: 'right' });
-  doc.text(`Total Water Billed: KSh ${totalWaterBilled.toLocaleString()}`, 190, startY + 30, { align: 'right' });
+  doc.text(`Total Water Paid: KSh ${totalWaterPaid.toLocaleString()}`, 190, startY + 30, { align: 'right' });
 
   // ── Rent history table ────────────────────────────────────────────────────
   doc.setTextColor(20, 30, 50);

@@ -203,7 +203,7 @@ export const TenantDetail: React.FC = () => {
   const waterHistory = getTenantWaterHistory(tenantId);
   const outstanding  = getTenantOutstanding(tenantId);
   const waterOutstanding = waterHistory
-    .filter(r => r.status === 'outstanding')
+    .filter(r => r.status !== 'paid')
     .reduce((s, r) => s + r.balance, 0);
   const initials     = `${tenant.first_name?.[0] || ''}${tenant.last_name?.[0] || ''}`.toUpperCase();
 
@@ -522,9 +522,9 @@ export const TenantDetail: React.FC = () => {
                       KSh {r.balance.toLocaleString()}
                     </td>
                     <td>
-                      <span className={`badge ${r.status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
+                      <span className={`badge ${r.status === 'paid' ? 'badge-success' : (r.status === 'partial' ? 'badge-info' : 'badge-warning')}`}>
                         <span className="badge-dot" />
-                        {r.status === 'paid' ? 'Paid' : 'Outstanding'}
+                        {r.status === 'paid' ? 'Paid' : (r.status === 'partial' ? 'Partial' : 'Outstanding')}
                       </span>
                     </td>
                   </tr>

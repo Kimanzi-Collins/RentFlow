@@ -389,9 +389,9 @@ export const WaterBilling: React.FC = () => {
                     </td>
                     <td>
                       {r ? (
-                        <span className={`badge ${r.status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
+                        <span className={`badge ${r.status === 'paid' ? 'badge-success' : (r.status === 'partial' ? 'badge-info' : 'badge-warning')}`}>
                           <span className="badge-dot" />
-                          {r.status === 'paid' ? 'Paid' : 'Outstanding'}
+                          {r.status === 'paid' ? 'Paid' : (r.status === 'partial' ? 'Partial' : 'Outstanding')}
                         </span>
                       ) : (
                         <span className="badge badge-warning">
@@ -407,7 +407,7 @@ export const WaterBilling: React.FC = () => {
                           onClick={() => setRecordModal({ tenant, existing: r })}>
                           {r ? 'Edit' : 'Record'}
                         </button>
-                        {r && r.status === 'outstanding' && r.balance > 0 && (
+                        {r && r.status !== 'paid' && r.balance > 0 && (
                           <button type="button" className="btn-organic btn-primary"
                             style={{ padding: '6px 12px', fontSize: 12 }}
                             onClick={() => setPayWaterModal({ ...r, tenant })}>
