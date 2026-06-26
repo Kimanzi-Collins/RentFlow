@@ -284,15 +284,6 @@ export const SignIn: React.FC = () => {
             </p>
           </div>
 
-          {/* Demo notice */}
-          {isDemoMode && (
-            <div data-animate style={{ marginBottom: 20, padding: '12px 14px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, opacity: 0 }}>
-              <p style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>
-                Demo mode · use any credentials to preview the dashboard.
-              </p>
-            </div>
-          )}
-
           {/* Error */}
           {error && (
             <div data-animate style={{ marginBottom: 16, padding: '12px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, opacity: 0 }}>
@@ -410,11 +401,31 @@ export const SignIn: React.FC = () => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                 fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer',
                 fontFamily: 'inherit', transition: 'border-color 0.2s, box-shadow 0.2s',
+                marginBottom: 12
               }}
               onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#d1d5db'; el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#e5e7eb'; el.style.boxShadow = 'none'; }}
             >
               <GoogleIcon /> Continue with Google
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                useAuthStore.getState().enableDemoMode();
+                navigate('/dashboard');
+              }}
+              style={{
+                width: '100%', padding: '13px', borderRadius: 12,
+                background: '#f9fafb', border: '1.5px dashed #d1d5db',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                fontSize: 14, fontWeight: 600, color: '#6b7280', cursor: 'pointer',
+                fontFamily: 'inherit', transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = '#f3f4f6'; el.style.color = '#374151'; el.style.borderColor = '#9ca3af'; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = '#f9fafb'; el.style.color = '#6b7280'; el.style.borderColor = '#d1d5db'; }}
+            >
+              <Eye size={16} /> Try Demo Mode
             </button>
           </div>
 

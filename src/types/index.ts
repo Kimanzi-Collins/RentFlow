@@ -74,14 +74,14 @@ export interface BaseEntity {
 
 /** User profile linked to a Supabase Auth account. */
 export interface Profile extends BaseEntity {
-  /** Foreign key to Supabase `auth.users.id`. */
-  auth_id: string;
   /** Email address (unique). */
   email: string;
   /** Display name. */
   full_name: string;
   /** Phone number in E.164 format. */
   phone?: string;
+  /** Company or organization name. */
+  company_name?: string;
   /** Application-level role. */
   role: UserRole;
   /** URL to the user's avatar image. */

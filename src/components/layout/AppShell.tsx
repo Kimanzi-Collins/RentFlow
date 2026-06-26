@@ -1,10 +1,14 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ToastProvider } from '@/components/ui/Toast';
+import { useBillingStore } from '@/stores/billingStore';
+import { usePropertyStore } from '@/stores/propertyStore';
+import { useUnitStore } from '@/stores/unitStore';
+import { useMaintenanceStore } from '@/stores/maintenanceStore';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -16,6 +20,21 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
+
+  const { fetchBillingData } = useBillingStore();
+  const { fetchProperties }  = usePropertyStore();
+  const { fetchUnits }       = useUnitStore();
+  const { fetchTickets }     = useMaintenanceStore();
+
+  // Load all live data once when the authenticated shell mounts
+  useEffect(() => {
+    Promise.all([
+      fetchBillingData(),
+      fetchProperties(),
+      fetchUnits(),
+      fetchTickets(),
+    ]).catch(console.error);
+  }, []);
 
   React.useEffect(() => {
     setMobileOpen(false);

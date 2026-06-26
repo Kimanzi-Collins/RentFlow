@@ -15,8 +15,28 @@ import { Settings } from '@/pages/Settings';
 import { Maintenance } from '@/pages/Maintenance';
 import { useAuthStore, useIsAuthenticated } from '@/stores/authStore';
 
+import { usePropertyStore } from '@/stores/propertyStore';
+import { useUnitStore } from '@/stores/unitStore';
+import { useBillingStore } from '@/stores/billingStore';
+import { useMaintenanceStore } from '@/stores/maintenanceStore';
+
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
+  
+  const { fetchProperties } = usePropertyStore();
+  const { fetchUnits } = useUnitStore();
+  const { fetchBillingData } = useBillingStore();
+  const { fetchTickets } = useMaintenanceStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchProperties();
+      fetchUnits();
+      fetchBillingData();
+      fetchTickets();
+    }
+  }, [isAuthenticated, fetchProperties, fetchUnits, fetchBillingData, fetchTickets]);
+
   if (!isAuthenticated) return <Navigate to="/sign-in" replace />;
   return <AppShell>{children}</AppShell>;
 }

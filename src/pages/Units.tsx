@@ -15,8 +15,8 @@ import { usePropertyStore } from '@/stores/propertyStore';
 const UNIT_TYPES  = ['Residential', 'Commercial', 'Industrial', 'Studio', 'Penthouse'];
 const STATUS_OPTS = ['vacant', 'occupied', 'maintenance'] as const;
 
-const FORM_INIT: Omit<Unit, 'id'> = {
-  unit_number: '', property: '', type: 'Residential', rent_amount: 0, status: 'vacant', tenant: '',
+const FORM_INIT: Omit<Unit, 'id' | 'property' | 'type' | 'tenant'> = {
+  unit_number: '', property_id: '', rent_amount: 0, status: 'vacant', bedrooms: 1,
 };
 
 const STATUS_STYLE = {
@@ -26,20 +26,25 @@ const STATUS_STYLE = {
 };
 
 export const Units: React.FC = () => {
-  const { units, addUnit, updateUnit, removeUnit } = useUnitStore();
-  const { properties } = usePropertyStore();
-  const { success } = useToast();
+  const { units, addUnit, updateUnit, removeUnit, fetchUnits } = useUnitStore();
+  const { properties, fetchProperties } = usePropertyStore();
+  const { success, error: errorToast } = useToast();
 
   const [searchTerm, setSearch]   = useState('');
   const [statusFilter, setStatus] = useState('all');
   const [showFilter, setFilter]   = useState(false);
   const [showAdd, setShowAdd]     = useState(false);
   const [editUnit, setEdit]       = useState<Unit | null>(null);
-  const [openMenu, setMenu]       = useState<number | null>(null);
-  const [form, setForm]           = useState<Omit<Unit, 'id'>>(FORM_INIT);
+  const [openMenu, setMenu]       = useState<string | null>(null);
+  const [form, setForm]           = useState<Omit<Unit, 'id' | 'property' | 'type' | 'tenant'>>(FORM_INIT);
   const [formErr, setFormErr]     = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const filterRef    = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchProperties();
+    fetchUnits();
+  }, []);
 
   useGSAP(
     () => {
@@ -70,43 +75,50 @@ export const Units: React.FC = () => {
 
   function openAdd() {
     setEdit(null);
-    setForm({ ...FORM_INIT, property: properties[0]?.name || '' });
+    setForm({ ...FORM_INIT, property_id: properties[0]?.id || '' });
     setFormErr('');
     setShowAdd(true);
   }
 
   function openEdit(u: Unit) {
     setEdit(u);
-    const { id, ...rest } = u;
+    const { id, property, type, tenant, ...rest } = u;
     setForm(rest);
     setFormErr('');
     setShowAdd(true);
     setMenu(null);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.unit_number.trim())  { setFormErr('Unit number is required.'); return; }
-    if (!form.property.trim())     { setFormErr('Property is required.'); return; }
+    if (!form.property_id.trim())  { setFormErr('Property is required.'); return; }
     if (!form.rent_amount || form.rent_amount <= 0) { setFormErr('Valid rent amount is required.'); return; }
     setFormErr('');
 
     if (editUnit) {
-      updateUnit(editUnit.id, form);
+      const res = await updateUnit(editUnit.id, form);
+      if (res.error) { setFormErr(res.error); return; }
       success('Unit updated', `Unit ${form.unit_number} updated.`);
     } else {
-      addUnit(form);
+      const res = await addUnit(form);
+      if (res.error) { setFormErr(res.error); return; }
       success('Unit added', `Unit ${form.unit_number} added.`);
     }
     setShowAdd(false);
     setEdit(null);
   }
 
-  function handleDelete(id: number) {
-    const u = units.find(x => x.id === id);
-    removeUnit(id);
-    success('Unit removed', `Unit ${u?.unit_number} removed.`);
-    setMenu(null);
+  async function handleDelete(id: string) {
+    if (confirm('Are you sure you want to delete this unit?')) {
+      const res: any = await removeUnit(id);
+      if (res && res.error) {
+        errorToast('Failed to delete', res.error);
+      } else {
+        success('Unit deleted', 'The unit has been permanently removed.');
+      }
+      setMenu(null);
+    }
   }
 
   function handleExport() {
@@ -210,7 +222,7 @@ export const Units: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
                         <button type="button" className="btn-icon" style={{ width: 30, height: 30, border: 'none' }}
                           onClick={() => setMenu(openMenu === unit.id ? null : unit.id)}>
                           <MoreVertical size={14} />
@@ -264,18 +276,16 @@ export const Units: React.FC = () => {
             </div>
             <div>
               <label className="modal-label">Property *</label>
-              <select aria-label="Property" className="modal-input" value={form.property}
-                onChange={e => setForm(f => ({ ...f, property: e.target.value }))}>
+              <select aria-label="Property" className="modal-input" value={form.property_id}
+                onChange={e => setForm(f => ({ ...f, property_id: e.target.value }))}>
                 <option value="">Select property…</option>
-                {properties.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="modal-label">Unit Type</label>
-              <select aria-label="Unit type" className="modal-input" value={form.type}
-                onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                {UNIT_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
+              <label className="modal-label">Bedrooms</label>
+              <input type="number" className="modal-input" value={form.bedrooms}
+                onChange={e => setForm(f => ({ ...f, bedrooms: parseInt(e.target.value) || 0 }))} />
             </div>
             <div>
               <label className="modal-label">Status</label>
@@ -291,8 +301,7 @@ export const Units: React.FC = () => {
             </div>
             <div>
               <label className="modal-label">Current Tenant</label>
-              <input className="modal-input" placeholder="Tenant name (if occupied)" value={form.tenant || ''}
-                onChange={e => setForm(f => ({ ...f, tenant: e.target.value }))} />
+              <input className="modal-input" value={form.tenant || 'None'} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} title="Tenant is automatically assigned when a lease is created" />
             </div>
           </div>
           <div className="modal-form-actions">

@@ -1,42 +1,121 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from './authStore';
 
 export interface Property {
-  id: number;
+  id: string;
+  landlord_id: string;
   name: string;
   address: string;
-  type: string;
   total_units: number;
-  occupied: number;
+  type?: string;
   description?: string;
+  occupied?: number; // Derived/Joined field
 }
-
-const SEED: Property[] = [
-  { id: 1, name: 'Serra Apartments',  address: 'Westlands, Nairobi',       type: 'Residential', total_units: 45, occupied: 41 },
-  { id: 2, name: 'SOJAG Head Office', address: 'Upper Hill, Nairobi',       type: 'Commercial',  total_units: 12, occupied: 10 },
-  { id: 3, name: 'LSU Logistics',     address: 'Industrial Area, Nairobi',  type: 'Industrial',  total_units: 8,  occupied: 6  },
-];
 
 interface PropertyState {
   properties: Property[];
-  addProperty:    (p: Omit<Property, 'id'>) => void;
-  updateProperty: (id: number, updates: Partial<Property>) => void;
-  removeProperty: (id: number) => void;
+  loading: boolean;
+  error: string | null;
+  fetchProperties: () => Promise<void>;
+  addProperty: (p: Omit<Property, 'id' | 'landlord_id'>) => Promise<{ error?: string }>;
+  updateProperty: (id: string, updates: Partial<Property>) => Promise<{ error?: string }>;
+  removeProperty: (id: string) => Promise<{ error?: string }>;
 }
 
-export const usePropertyStore = create<PropertyState>()(
-  persist(
-    (set, get) => ({
-      properties: SEED,
-      addProperty: (p) => {
-        const newId = Math.max(0, ...get().properties.map(x => x.id)) + 1;
-        set(s => ({ properties: [...s.properties, { ...p, id: newId }] }));
-      },
-      updateProperty: (id, updates) =>
-        set(s => ({ properties: s.properties.map(p => p.id === id ? { ...p, ...updates } : p) })),
-      removeProperty: (id) =>
-        set(s => ({ properties: s.properties.filter(p => p.id !== id) })),
-    }),
-    { name: 'rentflow-properties-v1' }
-  )
-);
+export const usePropertyStore = create<PropertyState>()((set, get) => ({
+  properties: [],
+  loading: false,
+  error: null,
+
+  fetchProperties: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select(`*, units(count)`); // we could join to get occupied count, but for now we'll just fetch properties
+
+      if (error) throw error;
+      
+      // Calculate occupied units locally or just map it
+      const mapped = (data || []).map(p => ({
+        ...p,
+        occupied: p.units?.[0]?.count || 0
+      }));
+
+      set({ properties: mapped as Property[] });
+    } catch (err) {
+      set({ error: (err as Error).message });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  addProperty: async (p) => {
+    const { profile } = useAuthStore.getState();
+    if (!profile) return { error: 'Not authenticated' };
+
+    try {
+      const landlord_id = profile.role === 'caretaker' ? profile.landlord_id : profile.id;
+
+      // Only send columns that exist in the Supabase properties table
+      const dbPayload = {
+        name: p.name,
+        address: p.address,
+        total_units: p.total_units,
+      };
+
+      const { error } = await supabase
+        .from('properties')
+        .insert({ ...dbPayload, landlord_id });
+
+      if (error) {
+        console.error('[propertyStore] addProperty error:', error);
+        throw error;
+      }
+      await get().fetchProperties();
+      return {};
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  },
+
+  updateProperty: async (id, updates) => {
+    try {
+      // Only send columns that exist in the Supabase properties table
+      const dbPayload: any = {};
+      if (updates.name !== undefined) dbPayload.name = updates.name;
+      if (updates.address !== undefined) dbPayload.address = updates.address;
+      if (updates.total_units !== undefined) dbPayload.total_units = updates.total_units;
+
+      const { error } = await supabase
+        .from('properties')
+        .update(dbPayload)
+        .eq('id', id);
+
+      if (error) {
+        console.error('[propertyStore] updateProperty error:', error);
+        throw error;
+      }
+      await get().fetchProperties();
+      return {};
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  },
+
+  removeProperty: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().fetchProperties();
+      return {};
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  }
+}));

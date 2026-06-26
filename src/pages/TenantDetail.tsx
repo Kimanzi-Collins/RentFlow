@@ -26,7 +26,7 @@ import type { RentRecord } from '@/stores/billingStore';
 const METHODS = ['M-PESA', 'Bank Transfer', 'Cash', 'Cheque'];
 
 const PayModal: React.FC<{
-  tenantId: number; record: RentRecord; onClose: () => void;
+  tenantId: string; record: RentRecord; onClose: () => void;
 }> = ({ tenantId, record, onClose }) => {
   const { recordPayment } = useBillingStore();
   const { success } = useToast();
@@ -35,13 +35,19 @@ const PayModal: React.FC<{
   const [note, setNote]     = useState('');
   const [err, setErr]       = useState('');
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const n = Number(amount);
     if (!n || n <= 0)      { setErr('Enter a valid amount.'); return; }
     if (n > record.balance) { setErr(`Exceeds outstanding balance of KSh ${record.balance.toLocaleString()}.`); return; }
     setErr('');
-    recordPayment(tenantId, record.period_key, n, method, note || undefined);
+    
+    const res: any = await recordPayment(tenantId, record.period_key, n, method, note || undefined);
+    if (res && res.error) {
+      setErr(res.error);
+      return;
+    }
+    
     success('Payment recorded', `KSh ${n.toLocaleString()} applied to ${record.period}`);
     onClose();
   }
@@ -49,9 +55,9 @@ const PayModal: React.FC<{
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {err && <div className="modal-error">{err}</div>}
-      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#e2eeff' }}>{record.period}</div>
-        <div style={{ fontSize: 12, color: 'rgba(226,238,255,0.5)', marginTop: 2 }}>
+      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px 14px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{record.period}</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
           Rent due: KSh {record.rent_due.toLocaleString()} · Paid: KSh {record.amount_paid.toLocaleString()} · Balance: KSh {record.balance.toLocaleString()}
         </div>
       </div>
@@ -82,7 +88,7 @@ const PayModal: React.FC<{
 // ─── Edit rent modal ──────────────────────────────────────────────────────────
 
 const EditRentModal: React.FC<{
-  tenantId: number; currentRent: number; onClose: () => void;
+  tenantId: string; currentRent: number; onClose: () => void;
 }> = ({ tenantId, currentRent, onClose }) => {
   const { updateTenant } = useBillingStore();
   const { success } = useToast();
@@ -106,7 +112,7 @@ const EditRentModal: React.FC<{
         <label className="modal-label">Monthly Rent (KES)</label>
         <input className="modal-input" type="number" min="1" value={rent} onChange={e => setRent(e.target.value)} autoFocus />
       </div>
-      <p style={{ fontSize: 12, color: 'rgba(226,238,255,0.4)', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
         This will apply to future billing periods. Existing rent records are not affected.
       </p>
       <div className="modal-form-actions">
@@ -120,7 +126,7 @@ const EditRentModal: React.FC<{
 // ─── Edit water rate modal ────────────────────────────────────────────────────
 
 const EditWaterRateModal: React.FC<{
-  tenantId: number; currentRate: number; onClose: () => void;
+  tenantId: string; currentRate: number; onClose: () => void;
 }> = ({ tenantId, currentRate, onClose }) => {
   const { updateTenant } = useBillingStore();
   const { success } = useToast();
@@ -144,7 +150,7 @@ const EditWaterRateModal: React.FC<{
         <label className="modal-label">Rate per m³ (KES)</label>
         <input className="modal-input" type="number" min="1" value={rate} onChange={e => setRate(e.target.value)} autoFocus />
       </div>
-      <p style={{ fontSize: 12, color: 'rgba(226,238,255,0.4)', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
         This sets the default rate for future water readings. You can still override per reading in Water Billing.
       </p>
       <div className="modal-form-actions">
@@ -167,7 +173,7 @@ export const TenantDetail: React.FC = () => {
     getTenantOutstanding, ensureRentRecord,
   } = useBillingStore();
 
-  const tenantId = parseInt(id ?? '0', 10);
+  const tenantId = id ?? '';
   const tenant = tenants.find(t => t.id === tenantId);
 
   const [tab, setTab]               = useState<'rent' | 'water'>('rent');
@@ -196,7 +202,10 @@ export const TenantDetail: React.FC = () => {
   const rentHistory  = getTenantRentHistory(tenantId);
   const waterHistory = getTenantWaterHistory(tenantId);
   const outstanding  = getTenantOutstanding(tenantId);
-  const initials     = `${tenant.first_name[0]}${tenant.last_name[0]}`.toUpperCase();
+  const waterOutstanding = waterHistory
+    .filter(r => r.status === 'outstanding')
+    .reduce((s, r) => s + r.balance, 0);
+  const initials     = `${tenant.first_name?.[0] || ''}${tenant.last_name?.[0] || ''}`.toUpperCase();
 
   // Chart data (last 6 months, oldest first)
   const rentChartData = rentHistory.slice(0, 6).reverse().map(r => ({
@@ -278,14 +287,26 @@ export const TenantDetail: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
-          {/* Outstanding balance badge */}
-          <div style={{
-            background: outstanding > 0 ? '#fef2f2' : '#ecfdf5',
-            color: outstanding > 0 ? '#dc2626' : '#059669',
-            borderRadius: 12, padding: '10px 18px', textAlign: 'right',
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Outstanding Balance</div>
-            <div style={{ fontSize: 22, fontWeight: 900 }}>KSh {outstanding.toLocaleString()}</div>
+          {/* Outstanding balances */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div style={{
+              background: outstanding > 0 ? '#fef2f2' : '#ecfdf5',
+              color: outstanding > 0 ? '#dc2626' : '#059669',
+              borderRadius: 12, padding: '10px 16px', textAlign: 'right',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Rent Outstanding</div>
+              <div style={{ fontSize: 20, fontWeight: 900 }}>KSh {outstanding.toLocaleString()}</div>
+            </div>
+            {waterHistory.length > 0 && (
+              <div style={{
+                background: waterOutstanding > 0 ? '#fffbeb' : '#ecfdf5',
+                color: waterOutstanding > 0 ? '#d97706' : '#059669',
+                borderRadius: 12, padding: '10px 16px', textAlign: 'right',
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Water Outstanding</div>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>KSh {waterOutstanding.toLocaleString()}</div>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button type="button" className="btn-icon" onClick={handleDownloadStatement} title="Download full statement" style={{ width: 36, height: 36 }}>
@@ -480,8 +501,9 @@ export const TenantDetail: React.FC = () => {
                   <th style={{ textAlign: 'right' }}>Prev (m³)</th>
                   <th style={{ textAlign: 'right' }}>Curr (m³)</th>
                   <th style={{ textAlign: 'right' }}>Consumed</th>
-                  <th style={{ textAlign: 'right' }}>Rate</th>
                   <th style={{ textAlign: 'right' }}>Bill (KES)</th>
+                  <th style={{ textAlign: 'right' }}>Paid (KES)</th>
+                  <th style={{ textAlign: 'right' }}>Balance (KES)</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -492,12 +514,17 @@ export const TenantDetail: React.FC = () => {
                     <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontWeight: 500 }}>{r.prev_reading.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.curr_reading.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.units_consumed.toLocaleString()} m³</td>
-                    <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 12 }}>KSh {r.rate}/m³</td>
                     <td style={{ textAlign: 'right', fontWeight: 800 }}>KSh {r.amount.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: r.amount_paid > 0 ? '#059669' : 'var(--text-muted)' }}>
+                      KSh {r.amount_paid.toLocaleString()}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 800, color: r.balance > 0 ? '#dc2626' : '#059669' }}>
+                      KSh {r.balance.toLocaleString()}
+                    </td>
                     <td>
-                      <span className={`badge ${r.status === 'paid' ? 'badge-success' : 'badge-info'}`}>
+                      <span className={`badge ${r.status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
                         <span className="badge-dot" />
-                        {r.status === 'paid' ? 'Paid' : 'Billed'}
+                        {r.status === 'paid' ? 'Paid' : 'Outstanding'}
                       </span>
                     </td>
                   </tr>

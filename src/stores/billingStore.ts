@@ -1,10 +1,12 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from './authStore';
+import { useUnitStore } from './unitStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TenantConfig {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -14,8 +16,8 @@ export interface TenantConfig {
   property: string;
   status: 'active' | 'inactive';
   rent_amount: number;
-  water_rate: number;            // KES per m³ consumed
-  initial_water_reading: number; // reading recorded at move-in
+  water_rate: number;
+  initial_water_reading: number;
   move_in_date: string;
 }
 
@@ -30,19 +32,19 @@ export interface RentTransaction {
 
 export interface RentRecord {
   id: string;
-  tenant_id: number;
-  period: string;     // "June 2026"
-  period_key: string; // "2026-06"
+  tenant_id: string;
+  period: string;
+  period_key: string;
   rent_due: number;
   amount_paid: number;
-  balance: number;    // rent_due - amount_paid
+  balance: number;
   status: 'paid' | 'partial' | 'unpaid';
   transactions: RentTransaction[];
 }
 
 export interface WaterReading {
   id: string;
-  tenant_id: number;
+  tenant_id: string;
   unit: string;
   period: string;
   period_key: string;
@@ -50,8 +52,10 @@ export interface WaterReading {
   curr_reading: number;
   units_consumed: number;
   rate: number;
-  amount: number;
-  status: 'billed' | 'paid';
+  amount: number;      // total bill (consumed × rate)
+  amount_paid: number; // how much has been paid so far
+  balance: number;     // amount - amount_paid
+  status: 'outstanding' | 'paid';
   billed_date: string;
 }
 
@@ -62,9 +66,8 @@ export function makePeriodKey(year: number, month: number): string {
 }
 
 export function makePeriodLabel(year: number, month: number): string {
-  return new Date(year, month - 1, 1).toLocaleDateString('en-KE', {
-    month: 'long', year: 'numeric',
-  });
+  const d = new Date(year, month - 1);
+  return d.toLocaleString('default', { month: 'long', year: 'numeric' });
 }
 
 export function parsePeriodKey(key: string): { year: number; month: number } {
@@ -72,118 +75,31 @@ export function parsePeriodKey(key: string): { year: number; month: number } {
   return { year: y, month: m };
 }
 
-/** Generates every billing period from Jan 2026 up to and including the current month. */
-export function getAvailablePeriods(): { label: string; key: string }[] {
-  const now        = new Date();
-  const curYear    = now.getFullYear();
-  const curMonth   = now.getMonth() + 1; // 1-based
-  const startYear  = 2026;
+export function getAvailablePeriods(): { key: string; label: string; year: number; month: number }[] {
+  const periods = [];
+  const startYear = 2026;
   const startMonth = 1;
+  const now = new Date();
+  const endYear = now.getFullYear();
+  const endMonth = now.getMonth() + 1;
 
-  const result: { label: string; key: string }[] = [];
-  let y = startYear, m = startMonth;
-
-  while (y < curYear || (y === curYear && m <= curMonth)) {
-    result.push({ label: makePeriodLabel(y, m), key: makePeriodKey(y, m) });
-    m++;
-    if (m > 12) { m = 1; y++; }
+  for (let y = startYear; y <= endYear; y++) {
+    for (let m = (y === startYear ? startMonth : 1); m <= (y === endYear ? endMonth : 12); m++) {
+      periods.push({
+        key: makePeriodKey(y, m),
+        label: makePeriodLabel(y, m),
+        year: y,
+        month: m,
+      });
+    }
   }
-
-  return result.reverse(); // most recent first
+  return periods.reverse();
 }
 
-/** The billing period matching today's calendar month — updates automatically. */
 export const CURRENT_PERIOD_KEY = (() => {
   const now = new Date();
   return makePeriodKey(now.getFullYear(), now.getMonth() + 1);
 })();
-
-// ─── Seed data helpers ────────────────────────────────────────────────────────
-
-function mkTxn(id: string, amount: number, method: string, date: string): RentTransaction {
-  return { id, amount, method, date, reference: `MP${id.replace(/\D/g, '').slice(-8).padStart(8, '0')}` };
-}
-
-function mkRent(
-  tenantId: number, year: number, month: number, rentDue: number, paid: number,
-): RentRecord {
-  const key = makePeriodKey(year, month);
-  const balance = Math.max(0, rentDue - paid);
-  const status: RentRecord['status'] = paid >= rentDue ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
-  const transactions: RentTransaction[] = paid > 0
-    ? [mkTxn(`t${tenantId}-${key}`, paid, 'M-PESA', `${year}-${String(month).padStart(2, '0')}-05`)]
-    : [];
-  return { id: `r-${tenantId}-${key}`, tenant_id: tenantId, period: makePeriodLabel(year, month), period_key: key, rent_due: rentDue, amount_paid: paid, balance, status, transactions };
-}
-
-function mkWater(
-  tenantId: number, unit: string, year: number, month: number,
-  prev: number, curr: number, rate: number,
-): WaterReading {
-  const key = makePeriodKey(year, month);
-  const consumed = curr - prev;
-  return {
-    id: `w-${tenantId}-${key}`, tenant_id: tenantId, unit,
-    period: makePeriodLabel(year, month), period_key: key,
-    prev_reading: prev, curr_reading: curr, units_consumed: consumed,
-    rate, amount: consumed * rate,
-    status: month < 6 ? 'paid' : 'billed',
-    billed_date: `${year}-${String(month).padStart(2, '0')}-28`,
-  };
-}
-
-// ─── Seed tenants ─────────────────────────────────────────────────────────────
-
-const SEED_TENANTS: TenantConfig[] = [
-  { id: 1, first_name: 'James',  last_name: 'Mwangi',  email: 'james@example.com',  phone: '0712 345 678', id_number: '12345678', unit: 'A-104', property: 'Serra Apartments',  status: 'active',   rent_amount: 18000, water_rate: 150, initial_water_reading: 1200, move_in_date: '2026-01-01' },
-  { id: 2, first_name: 'Fatuma', last_name: 'Hassan',  email: 'fatuma@example.com', phone: '0723 456 789', id_number: '87654321', unit: 'C-301', property: 'SOJAG Head Office', status: 'active',   rent_amount: 25000, water_rate: 150, initial_water_reading: 800,  move_in_date: '2026-01-01' },
-  { id: 3, first_name: 'Peter',  last_name: 'Ochieng', email: 'peter@example.com',  phone: '0734 567 890', id_number: '11223344', unit: 'B-204', property: 'Serra Apartments',  status: 'active',   rent_amount: 45000, water_rate: 150, initial_water_reading: 2100, move_in_date: '2026-01-01' },
-  { id: 4, first_name: 'Grace',  last_name: 'Wanjiku', email: 'grace@example.com',  phone: '0745 678 901', id_number: '44332211', unit: 'A-101', property: 'Serra Apartments',  status: 'active',   rent_amount: 35000, water_rate: 150, initial_water_reading: 1500, move_in_date: '2026-03-01' },
-  { id: 5, first_name: 'Samuel', last_name: 'Njoroge', email: 'samuel@example.com', phone: '0756 789 012', id_number: '99887766', unit: 'B-102', property: 'Serra Apartments',  status: 'inactive', rent_amount: 30000, water_rate: 150, initial_water_reading: 900,  move_in_date: '2026-01-01' },
-];
-
-// ─── Seed rent records (Jan–Jun 2026) ────────────────────────────────────────
-
-const SEED_RENT: RentRecord[] = [
-  // James Mwangi — A-104, KSh 18,000
-  mkRent(1,2026,1,18000,18000), mkRent(1,2026,2,18000,18000), mkRent(1,2026,3,18000,18000),
-  mkRent(1,2026,4,18000,10000), mkRent(1,2026,5,18000,18000), mkRent(1,2026,6,18000,0),
-
-  // Fatuma Hassan — C-301, KSh 25,000
-  mkRent(2,2026,1,25000,25000), mkRent(2,2026,2,25000,25000), mkRent(2,2026,3,25000,25000),
-  mkRent(2,2026,4,25000,25000), mkRent(2,2026,5,25000,20000), mkRent(2,2026,6,25000,0),
-
-  // Peter Ochieng — B-204, KSh 45,000
-  mkRent(3,2026,1,45000,45000), mkRent(3,2026,2,45000,45000), mkRent(3,2026,3,45000,45000),
-  mkRent(3,2026,4,45000,30000), mkRent(3,2026,5,45000,30000), mkRent(3,2026,6,45000,0),
-
-  // Grace Wanjiku — A-101, KSh 35,000 (moved in March)
-  mkRent(4,2026,3,35000,35000), mkRent(4,2026,4,35000,35000),
-  mkRent(4,2026,5,35000,35000), mkRent(4,2026,6,35000,35000),
-];
-
-// ─── Seed water readings (Jan–Jun 2026) ──────────────────────────────────────
-
-const SEED_WATER: WaterReading[] = [
-  // James — A-104, initial 1200
-  mkWater(1,'A-104',2026,1,1200,1247,150), mkWater(1,'A-104',2026,2,1247,1294,150),
-  mkWater(1,'A-104',2026,3,1294,1342,150), mkWater(1,'A-104',2026,4,1342,1389,150),
-  mkWater(1,'A-104',2026,5,1389,1436,150), mkWater(1,'A-104',2026,6,1436,1484,150),
-
-  // Fatuma — C-301, initial 800
-  mkWater(2,'C-301',2026,1,800,842,150),   mkWater(2,'C-301',2026,2,842,886,150),
-  mkWater(2,'C-301',2026,3,886,928,150),   mkWater(2,'C-301',2026,4,928,971,150),
-  mkWater(2,'C-301',2026,5,971,1015,150),  mkWater(2,'C-301',2026,6,1015,1059,150),
-
-  // Peter — B-204, initial 2100
-  mkWater(3,'B-204',2026,1,2100,2168,150), mkWater(3,'B-204',2026,2,2168,2235,150),
-  mkWater(3,'B-204',2026,3,2235,2304,150), mkWater(3,'B-204',2026,4,2304,2372,150),
-  mkWater(3,'B-204',2026,5,2372,2440,150), mkWater(3,'B-204',2026,6,2440,2509,150),
-
-  // Grace — A-101, initial 1500, from March
-  mkWater(4,'A-101',2026,3,1500,1543,150), mkWater(4,'A-101',2026,4,1543,1587,150),
-  mkWater(4,'A-101',2026,5,1587,1630,150), mkWater(4,'A-101',2026,6,1630,1674,150),
-];
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
@@ -191,175 +107,466 @@ interface BillingState {
   tenants: TenantConfig[];
   rentRecords: RentRecord[];
   waterReadings: WaterReading[];
+  loading: boolean;
+  error: string | null;
 
-  // ── Tenant actions ──────────────────────────────────────────────────────────
-  addTenant: (t: TenantConfig) => void;
-  updateTenant: (id: number, updates: Partial<TenantConfig>) => void;
-  removeTenant: (id: number) => void;
+  fetchBillingData: () => Promise<void>;
 
-  // ── Rent actions ────────────────────────────────────────────────────────────
-  /** Create a rent record for the period if it doesn't exist yet. */
-  ensureRentRecord: (tenantId: number, year: number, month: number) => void;
-  /** Add a payment transaction and update balance / status. */
-  recordPayment: (tenantId: number, periodKey: string, amount: number, method: string, note?: string) => void;
+  addTenant: (t: Omit<TenantConfig, 'id'>) => Promise<void>;
+  updateTenant: (id: string, updates: Partial<TenantConfig>) => Promise<void>;
+  removeTenant: (id: string) => Promise<void>;
 
-  // ── Water actions ───────────────────────────────────────────────────────────
-  /**
-   * Record a water reading for a tenant/period.
-   * - Previous reading is auto-resolved from last recorded curr_reading, or initial_water_reading.
-   * - If a reading already exists for the period it is overwritten.
-   */
-  recordWaterReading: (tenantId: number, unit: string, year: number, month: number, currReading: number, rateOverride?: number) => void;
-  /** Returns the most recent water reading for a tenant, or null. */
-  getLastWaterReading: (tenantId: number) => WaterReading | null;
+  ensureRentRecord: (tenantId: string, year: number, month: number) => void;
+  recordPayment: (tenantId: string, periodKey: string, amount: number, method: string, note?: string) => void;
 
-  // ── Derived queries ─────────────────────────────────────────────────────────
-  /** All rent records for a period, joined with their tenant. */
+  recordWaterReading: (tenantId: string, unit: string, year: number, month: number, currReading: number, rateOverride?: number) => void;
+  getLastWaterReading: (tenantId: string) => WaterReading | null;
+
   getRentForPeriod: (pKey: string) => Array<RentRecord & { tenant: TenantConfig }>;
-  /** All water readings for a period, joined with their tenant. */
   getWaterForPeriod: (pKey: string) => Array<WaterReading & { tenant: TenantConfig }>;
-  /** All rent records for a tenant, newest first. */
-  getTenantRentHistory: (tenantId: number) => RentRecord[];
-  /** All water readings for a tenant, newest first. */
-  getTenantWaterHistory: (tenantId: number) => WaterReading[];
-  /** Sum of all outstanding balances for a tenant. */
-  getTenantOutstanding: (tenantId: number) => number;
-  /** Mark a water reading as paid for a given tenant/period. */
-  markWaterPaid: (tenantId: number, periodKey: string) => void;
+  getTenantRentHistory: (tenantId: string) => RentRecord[];
+  getTenantWaterHistory: (tenantId: string) => WaterReading[];
+  getTenantOutstanding: (tenantId: string) => number;
+  /** Record a (partial or full) payment against a specific water reading. */
+  recordWaterPayment: (readingId: string, amount: number) => Promise<{ error?: string }>;
+  /** Convenience: marks the full outstanding balance of a tenant's period reading as paid. */
+  markWaterPaid: (tenantId: string, periodKey: string) => Promise<void>;
 }
 
-export const useBillingStore = create<BillingState>()(
-  persist(
-    (set, get) => ({
-      tenants:       SEED_TENANTS,
-      rentRecords:   SEED_RENT,
-      waterReadings: SEED_WATER,
+export const useBillingStore = create<BillingState>()((set, get) => ({
+  tenants: [],
+  rentRecords: [],
+  waterReadings: [],
+  loading: false,
+  error: null,
 
-      // ── Tenants ──────────────────────────────────────────────────────────────
-      addTenant: (t) => set(s => ({ tenants: [...s.tenants, t] })),
+  fetchBillingData: async () => {
+    const { isDemoMode } = useAuthStore.getState();
+    console.log('[billingStore] fetchBillingData called, isDemoMode:', isDemoMode);
+    if (isDemoMode) {
+      console.warn('[billingStore] Skipping fetch because isDemoMode is true. If you are logged in with a real account, clear localStorage key "rentflow-auth" and reload.');
+      return;
+    }
 
-      updateTenant: (id, updates) =>
-        set(s => ({ tenants: s.tenants.map(t => t.id === id ? { ...t, ...updates } : t) })),
+    set({ loading: true, error: null });
+    try {
+      // 1. Fetch Tenants & Leases
+      const { data: tenantsData, error: tErr } = await supabase
+        .from('tenants')
+        .select(`
+          id, full_name, email, phone, national_id,
+          leases (
+            id, start_date, rent_amount, is_active, water_rate, initial_water_reading,
+            units (
+              unit_number,
+              properties (name)
+            )
+          )
+        `);
 
-      removeTenant: (id) =>
-        set(s => ({ tenants: s.tenants.filter(t => t.id !== id) })),
+      if (tErr) throw tErr;
 
-      // ── Rent ─────────────────────────────────────────────────────────────────
-      ensureRentRecord: (tenantId, year, month) => {
-        const key = makePeriodKey(year, month);
-        const { rentRecords, tenants } = get();
-        if (rentRecords.find(r => r.tenant_id === tenantId && r.period_key === key)) return;
-        const tenant = tenants.find(t => t.id === tenantId);
-        if (!tenant) return;
-        const rec = mkRent(tenantId, year, month, tenant.rent_amount, 0);
-        set(s => ({ rentRecords: [...s.rentRecords, rec] }));
-      },
+      const tenants: TenantConfig[] = (tenantsData || []).map(t => {
+        const lease = t.leases?.[0] || {};
+        const unit = lease.units || {};
+        const property = unit.properties || {};
 
-      recordPayment: (tenantId, pKey, amount, method, note) => {
-        const { year, month } = parsePeriodKey(pKey);
-        get().ensureRentRecord(tenantId, year, month);
-        set(s => ({
-          rentRecords: s.rentRecords.map(r => {
-            if (r.tenant_id !== tenantId || r.period_key !== pKey) return r;
-            const newPaid    = r.amount_paid + amount;
-            const newBalance = Math.max(0, r.rent_due - newPaid);
-            const newStatus: RentRecord['status'] =
-              newPaid >= r.rent_due ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
-            const txn: RentTransaction = {
-              id: `txn-${Date.now()}`,
-              amount, method,
-              date: new Date().toISOString().split('T')[0],
-              reference: `MP${Date.now().toString().slice(-8)}`,
-              note,
-            };
-            return { ...r, amount_paid: newPaid, balance: newBalance, status: newStatus, transactions: [...r.transactions, txn] };
-          }),
-        }));
-      },
+        const [first_name, ...lastNameParts] = (t.full_name || '').split(' ');
+        const last_name = lastNameParts.join(' ');
 
-      // ── Water ─────────────────────────────────────────────────────────────────
-      recordWaterReading: (tenantId, unit, year, month, currReading, rateOverride) => {
-        const { waterReadings, tenants } = get();
-        const tenant = tenants.find(t => t.id === tenantId);
-        if (!tenant) return;
-
-        const rate = rateOverride ?? tenant.water_rate;
-
-        // Find the most recent previous reading (any period before this one)
-        const key = makePeriodKey(year, month);
-        const prior = waterReadings
-          .filter(r => r.tenant_id === tenantId && r.period_key < key)
-          .sort((a, b) => b.period_key.localeCompare(a.period_key))[0];
-        const prevReading = prior?.curr_reading ?? tenant.initial_water_reading;
-
-        const consumed = Math.max(0, currReading - prevReading);
-        const existing = waterReadings.find(r => r.tenant_id === tenantId && r.period_key === key);
-
-        const newReading: WaterReading = {
-          id: existing?.id ?? `w-${tenantId}-${key}`,
-          tenant_id: tenantId, unit,
-          period: makePeriodLabel(year, month), period_key: key,
-          prev_reading: prevReading, curr_reading: currReading,
-          units_consumed: consumed, rate, amount: consumed * rate,
-          status: 'billed',
-          billed_date: new Date().toISOString().split('T')[0],
+        return {
+          id: t.id,
+          first_name: first_name || 'Unknown',
+          last_name: last_name || '',
+          email: t.email || '',
+          phone: t.phone || '',
+          id_number: t.national_id || '',
+          unit: unit.unit_number || 'Unassigned',
+          property: property.name || 'Unknown Property',
+          status: (lease.is_active === false) ? 'inactive' : 'active',
+          rent_amount: Number(lease.rent_amount) || 0,
+          water_rate: lease.water_rate !== undefined ? Number(lease.water_rate) : 150,
+          initial_water_reading: lease.initial_water_reading !== undefined ? Number(lease.initial_water_reading) : 0,
+          move_in_date: lease.start_date || '',
         };
+      });
 
-        set(s => ({
-          waterReadings: existing
-            ? s.waterReadings.map(r => r.id === existing.id ? newReading : r)
-            : [...s.waterReadings, newReading],
-        }));
-      },
+      // 2. Fetch Rent Records & Transactions
+      const { data: rentData, error: rErr } = await supabase
+        .from('rent_records')
+        .select(`
+          id, tenant_id, period, period_key, rent_due, amount_paid, status,
+          rent_transactions (
+            id, amount, payment_method, payment_date, reference_number, note
+          )
+        `);
+      if (rErr) throw rErr;
 
-      getLastWaterReading: (tenantId) => {
-        const sorted = get().waterReadings
-          .filter(r => r.tenant_id === tenantId)
-          .sort((a, b) => b.period_key.localeCompare(a.period_key));
-        return sorted[0] ?? null;
-      },
-
-      // ── Queries ───────────────────────────────────────────────────────────────
-      getRentForPeriod: (pKey) => {
-        const { rentRecords, tenants } = get();
-        return rentRecords
-          .filter(r => r.period_key === pKey)
-          .map(r => ({ ...r, tenant: tenants.find(t => t.id === r.tenant_id)! }))
-          .filter(r => r.tenant);
-      },
-
-      getWaterForPeriod: (pKey) => {
-        const { waterReadings, tenants } = get();
-        return waterReadings
-          .filter(r => r.period_key === pKey)
-          .map(r => ({ ...r, tenant: tenants.find(t => t.id === r.tenant_id)! }))
-          .filter(r => r.tenant);
-      },
-
-      getTenantRentHistory: (tenantId) =>
-        get().rentRecords
-          .filter(r => r.tenant_id === tenantId)
-          .sort((a, b) => b.period_key.localeCompare(a.period_key)),
-
-      getTenantWaterHistory: (tenantId) =>
-        get().waterReadings
-          .filter(r => r.tenant_id === tenantId)
-          .sort((a, b) => b.period_key.localeCompare(a.period_key)),
-
-      getTenantOutstanding: (tenantId) =>
-        get().rentRecords
-          .filter(r => r.tenant_id === tenantId)
-          .reduce((sum, r) => sum + r.balance, 0),
-
-      markWaterPaid: (tenantId, pKey) =>
-        set(s => ({
-          waterReadings: s.waterReadings.map(r =>
-            r.tenant_id === tenantId && r.period_key === pKey
-              ? { ...r, status: 'paid' as const }
-              : r
-          ),
+      const rentRecords: RentRecord[] = (rentData || []).map(r => ({
+        id: r.id,
+        tenant_id: r.tenant_id,
+        period: r.period,
+        period_key: r.period_key,
+        rent_due: Number(r.rent_due),
+        amount_paid: Number(r.amount_paid),
+        balance: Number(r.rent_due) - Number(r.amount_paid),
+        status: r.status as 'paid' | 'partial' | 'unpaid',
+        transactions: (r.rent_transactions || []).map((txn: any) => ({
+          id: txn.id,
+          amount: Number(txn.amount),
+          method: txn.payment_method,
+          date: txn.payment_date,
+          reference: txn.reference_number || '',
+          note: txn.note || '',
         })),
-    }),
-    { name: 'rentflow-billing-v1' },
-  ),
-);
+      })).filter(r => r.tenant_id);
+
+      // 3. Fetch Water Readings
+      const { data: waterData, error: wErr } = await supabase
+        .from('meter_readings')
+        .select(`
+          id, reading_date, previous_reading, current_reading, consumption, rate, total_amount, is_billed,
+          units ( unit_number, leases ( tenant_id ) )
+        `)
+        .eq('meter_type', 'water');
+      if (wErr) throw wErr;
+
+      const waterReadings: WaterReading[] = (waterData || []).map(w => {
+        const date = new Date(w.reading_date || new Date());
+        const periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const periodName = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+
+        const tenantId  = w.units?.leases?.[0]?.tenant_id || 'unknown';
+        const totalAmt  = Number(w.total_amount   || 0);
+        const paidAmt   = Number(w.amount_paid    || 0);
+        const balance   = Math.max(0, totalAmt - paidAmt);
+
+        return {
+          id: w.id,
+          tenant_id: tenantId,
+          unit: w.units?.unit_number || 'Unknown',
+          period: periodName,
+          period_key: periodKey,
+          prev_reading: Number(w.previous_reading),
+          curr_reading: Number(w.current_reading),
+          units_consumed: Number(w.consumption),
+          rate: Number(w.rate),
+          amount:      totalAmt,
+          amount_paid: paidAmt,
+          balance,
+          status: balance <= 0 ? 'paid' : 'outstanding',
+          billed_date: w.reading_date || '',
+        };
+      });
+
+      set({ tenants, rentRecords, waterReadings, loading: false });
+    } catch (err) {
+      console.error('Error fetching billing data:', err);
+      set({ error: (err as Error).message, loading: false });
+    }
+  },
+
+  addTenant: async (t) => {
+    const { profile } = useAuthStore.getState();
+    if (!profile) return;
+    const landlord_id = profile.role === 'caretaker' ? profile.landlord_id : profile.id;
+
+    try {
+      // 1. Insert tenant
+      const { data: tenantData, error: tErr } = await supabase.from('tenants').insert({
+        landlord_id,
+        full_name: `${t.first_name} ${t.last_name}`.trim(),
+        email: t.email,
+        phone: t.phone,
+        national_id: t.id_number
+      }).select('id').single();
+      if (tErr) throw tErr;
+
+      // 2. Find unit ID to create lease
+      if (t.unit) {
+        const { units } = useUnitStore.getState();
+        const unit = units.find(u => u.unit_number === t.unit);
+        if (unit) {
+          const { error: lErr } = await supabase.from('leases').insert({
+            tenant_id: tenantData.id,
+            unit_id: unit.id,
+            start_date: t.move_in_date || new Date().toISOString().split('T')[0],
+            rent_amount: t.rent_amount,
+            deposit_amount: 0,
+            is_active: t.status === 'active',
+            water_rate: t.water_rate || 150,
+            initial_water_reading: t.initial_water_reading || 0
+          });
+          if (lErr) throw lErr;
+          
+          await supabase.from('units').update({ status: 'occupied' }).eq('id', unit.id);
+        }
+      }
+      await get().fetchBillingData();
+      return {};
+    } catch (err) {
+      console.error('Failed to add tenant:', err);
+      return { error: (err as Error).message };
+    }
+  },
+
+  updateTenant: async (id, updates) => {
+    try {
+      // 1. Update tenants table if relevant fields provided
+      if (updates.first_name !== undefined || updates.last_name !== undefined || updates.email !== undefined || updates.phone !== undefined || updates.id_number !== undefined) {
+        const tenantToUpdate = get().tenants.find(t => t.id === id);
+        if (tenantToUpdate) {
+          const fn = updates.first_name !== undefined ? updates.first_name : tenantToUpdate.first_name;
+          const ln = updates.last_name !== undefined ? updates.last_name : tenantToUpdate.last_name;
+          const { error: tErr } = await supabase.from('tenants').update({
+            full_name: `${fn} ${ln}`.trim(),
+            email: updates.email !== undefined ? updates.email : tenantToUpdate.email,
+            phone: updates.phone !== undefined ? updates.phone : tenantToUpdate.phone,
+            national_id: updates.id_number !== undefined ? updates.id_number : tenantToUpdate.id_number
+          }).eq('id', id);
+          if (tErr) { console.error(tErr); return { error: tErr.message }; }
+        }
+      }
+
+      // 2. Update leases table if rent_amount, status, water_rate, or initial_water_reading provided
+      if (updates.rent_amount !== undefined || updates.status !== undefined || updates.water_rate !== undefined || updates.initial_water_reading !== undefined) {
+        const leaseUpdates: any = {};
+        if (updates.rent_amount !== undefined) leaseUpdates.rent_amount = updates.rent_amount;
+        if (updates.status !== undefined) leaseUpdates.is_active = updates.status === 'active';
+        if (updates.water_rate !== undefined) leaseUpdates.water_rate = updates.water_rate;
+        if (updates.initial_water_reading !== undefined) leaseUpdates.initial_water_reading = updates.initial_water_reading;
+
+        // Note: The UI just gives us tenant ID. We need to update the active lease for this tenant.
+        const { error: lErr } = await supabase.from('leases').update(leaseUpdates).eq('tenant_id', id).eq('is_active', true);
+        if (lErr) { console.error(lErr); return { error: lErr.message }; }
+      }
+
+      await get().fetchBillingData();
+      return {};
+    } catch (err) {
+      console.error('Failed to update tenant:', err);
+      return { error: (err as Error).message };
+    }
+  },
+
+  removeTenant: async (id) => {
+    try {
+      // Cascade: must delete child rows before the parent tenant row.
+      // Order: rent_transactions → rent_records → leases → tenant
+
+      // 1. Capture unit_id from lease so we can mark it vacant afterwards
+      const { data: leases } = await supabase
+        .from('leases').select('unit_id').eq('tenant_id', id);
+
+      // 2. Delete rent_transactions → rent_records
+      const { data: records } = await supabase
+        .from('rent_records').select('id').eq('tenant_id', id);
+      if (records?.length) {
+        await supabase.from('rent_transactions')
+          .delete().in('rent_record_id', records.map(r => r.id));
+      }
+      await supabase.from('rent_records').delete().eq('tenant_id', id);
+
+      // 3. Delete leases then mark the unit vacant
+      await supabase.from('leases').delete().eq('tenant_id', id);
+      if (leases?.length) {
+        for (const lease of leases) {
+          await supabase.from('units').update({ status: 'vacant' }).eq('id', lease.unit_id);
+        }
+      }
+
+      // 4. Finally delete the tenant
+      const { error } = await supabase.from('tenants').delete().eq('id', id);
+      if (error) throw error;
+
+      await get().fetchBillingData();
+      return {};
+    } catch (err) {
+      console.error('Failed to remove tenant:', err);
+      return { error: (err as Error).message };
+    }
+  },
+
+  ensureRentRecord: async (tenantId, year, month) => {
+    try {
+      const periodKey = `${year}-${String(month).padStart(2, '0')}`;
+      const periodLabel = makePeriodLabel(year, month);
+
+      const { rentRecords, tenants } = get();
+      const exists = rentRecords.some(r => r.tenant_id === tenantId && r.period_key === periodKey);
+
+      if (!exists) {
+        const tenant = tenants.find(t => t.id === tenantId);
+        if (tenant) {
+          // Never create a rent record for a period before the tenant's move-in date
+          if (tenant.move_in_date) {
+            const moveInKey = tenant.move_in_date.slice(0, 7); // "2026-05"
+            if (periodKey < moveInKey) return;
+          }
+          await supabase.from('rent_records').insert({
+            tenant_id: tenantId,
+            period: periodLabel,
+            period_key: periodKey,
+            rent_due: tenant.rent_amount,
+            amount_paid: 0,
+            status: 'unpaid'
+          });
+          await get().fetchBillingData();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to ensure rent record:', err);
+    }
+  },
+
+  recordPayment: async (tenantId, periodKey, amount, method, note) => {
+    try {
+      const { rentRecords } = get();
+      const record = rentRecords.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
+      
+      if (record) {
+        const newPaid = record.amount_paid + amount;
+        let newStatus = record.status;
+        if (newPaid >= record.rent_due) newStatus = 'paid';
+        else if (newPaid > 0) newStatus = 'partial';
+        
+        await supabase.from('rent_records').update({
+          amount_paid: newPaid,
+          status: newStatus
+        }).eq('id', record.id);
+        
+        await supabase.from('rent_transactions').insert({
+          rent_record_id: record.id,
+          amount: amount,
+          payment_method: method,
+          payment_date: new Date().toISOString().split('T')[0],
+          note: note
+        });
+        
+        await get().fetchBillingData();
+        return {};
+      }
+      return { error: 'Rent record not found' };
+    } catch (err) {
+      console.error('Failed to record payment:', err);
+      return { error: (err as Error).message };
+    }
+  },
+  recordWaterReading: async (tenantId, unitNumber, year, month, currReading, rate) => {
+    try {
+      const periodKey = `${year}-${String(month).padStart(2, '0')}`;
+      const periodLabel = makePeriodLabel(year, month);
+      
+      const { units } = useUnitStore.getState();
+      const unit = units.find(u => u.unit_number === unitNumber);
+      if (!unit) throw new Error('Unit not found');
+
+      // Get previous reading or initial
+      const { waterReadings, tenants } = get();
+      const lastR = waterReadings
+        .filter(r => r.tenant_id === tenantId && r.period_key < periodKey)
+        .sort((a, b) => b.period_key.localeCompare(a.period_key))[0];
+      
+      const tenant = tenants.find(t => t.id === tenantId);
+      const prevReading = lastR?.curr_reading ?? (tenant?.initial_water_reading || 0);
+
+      // meter_readings has no tenant_id column — link is unit_id → leases → tenants
+      const payload = {
+        unit_id: unit.id,
+        period: periodLabel,
+        period_key: periodKey,
+        reading_date: new Date().toISOString().split('T')[0],
+        meter_type: 'water',
+        previous_reading: prevReading,
+        current_reading: currReading,
+        rate: rate,
+      };
+      const existing = waterReadings.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
+      
+      let error = null;
+      if (existing) {
+        const { error: updateErr } = await supabase.from('meter_readings').update(payload).eq('id', existing.id);
+        error = updateErr;
+      } else {
+        const { error: insertErr } = await supabase.from('meter_readings').insert(payload);
+        error = insertErr;
+      }
+
+      if (error) {
+        console.error('Failed to record water reading:', error);
+        return { error: error.message };
+      }
+
+      await get().fetchBillingData();
+      return {};
+    } catch (err) {
+      console.error('Failed to record water reading:', err);
+      return { error: (err as Error).message };
+    }
+  },
+  
+  getLastWaterReading: (tenantId) => {
+    const sorted = get().waterReadings
+      .filter(r => r.tenant_id === tenantId)
+      .sort((a, b) => b.period_key.localeCompare(a.period_key));
+    return sorted[0] ?? null;
+  },
+
+  getRentForPeriod: (pKey) => {
+    const { rentRecords, tenants } = get();
+    return rentRecords
+      .filter(r => r.period_key === pKey)
+      .map(r => ({ ...r, tenant: tenants.find(t => t.id === r.tenant_id)! }))
+      .filter(r => r.tenant);
+  },
+
+  getWaterForPeriod: (pKey) => {
+    const { waterReadings, tenants } = get();
+    return waterReadings
+      .filter(r => r.period_key === pKey)
+      .map(r => ({ ...r, tenant: tenants.find(t => t.id === r.tenant_id)! }))
+      .filter(r => r.tenant);
+  },
+
+  getTenantRentHistory: (tenantId) =>
+    get().rentRecords
+      .filter(r => r.tenant_id === tenantId)
+      .sort((a, b) => b.period_key.localeCompare(a.period_key)),
+
+  getTenantWaterHistory: (tenantId) =>
+    get().waterReadings
+      .filter(r => r.tenant_id === tenantId)
+      .sort((a, b) => b.period_key.localeCompare(a.period_key)),
+
+  getTenantOutstanding: (tenantId) =>
+    get().rentRecords
+      .filter(r => r.tenant_id === tenantId)
+      .reduce((sum, r) => sum + r.balance, 0),
+
+  recordWaterPayment: async (readingId, amount) => {
+    try {
+      const reading = get().waterReadings.find(r => r.id === readingId);
+      if (!reading) return { error: 'Water reading not found' };
+
+      const newPaid    = reading.amount_paid + amount;
+      const newBalance = Math.max(0, reading.amount - newPaid);
+      const { error }  = await supabase
+        .from('meter_readings')
+        .update({ amount_paid: newPaid, is_billed: newBalance <= 0 })
+        .eq('id', readingId);
+
+      if (error) throw error;
+      await get().fetchBillingData();
+      return {};
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  },
+
+  markWaterPaid: async (tenantId, pKey) => {
+    const reading = get().waterReadings.find(r => r.tenant_id === tenantId && r.period_key === pKey);
+    if (reading && reading.balance > 0) {
+      await get().recordWaterPayment(reading.id, reading.balance);
+    }
+  },
+}));

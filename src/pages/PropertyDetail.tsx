@@ -64,7 +64,7 @@ const RevenueTooltip = ({ active, payload, label }: any) => {
 // ─── Edit property modal ──────────────────────────────────────────────────────
 
 const EditModal: React.FC<{
-  propId: number;
+  propId: string;
   initial: { name: string; address: string; description?: string; total_units: number; occupied: number };
   onClose: () => void;
 }> = ({ propId, initial, onClose }) => {
@@ -105,7 +105,7 @@ export const PropertyDetail: React.FC = () => {
   const { properties } = usePropertyStore();
   const { tenants, rentRecords, getTenantOutstanding } = useBillingStore();
 
-  const propId   = parseInt(id ?? '0', 10);
+  const propId   = id || '';
   const property = properties.find(p => p.id === propId);
 
   const [tab, setTab]       = useState<'tenants' | 'units'>('tenants');
@@ -342,7 +342,7 @@ export const PropertyDetail: React.FC = () => {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#171717', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                            {t.first_name[0]}{t.last_name[0]}
+                            {(t.first_name?.[0] || '') + (t.last_name?.[0] || '')}
                           </div>
                           <span style={{ fontWeight: 700, fontSize: 14 }}>{t.first_name} {t.last_name}</span>
                         </div>

@@ -9,31 +9,12 @@ import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { downloadPDF } from '@/lib/export';
 import { useBillingStore } from '@/stores/billingStore';
+import { useMaintenanceStore, Ticket } from '@/stores/maintenanceStore';
 
-interface Ticket {
-  id: number;
-  title: string;
-  unit: string;
-  property: string;
-  date: string;
-  priority: 'High' | 'Medium' | 'Low';
-  status: 'pending' | 'in-progress' | 'resolved';
-  description: string;
-  assignee: string;
-}
-
-const MOCK_TICKETS: Ticket[] = [
-  { id: 1, title: 'Leaking Sink',             unit: 'B-204', property: 'Serra Apartments',  date: '2026-06-19', priority: 'High',   status: 'pending',     description: 'Kitchen sink pipe leaking under cabinet.', assignee: 'John Plumber' },
-  { id: 2, title: 'Broken Window Handle',      unit: 'C-301', property: 'SOJAG Office',      date: '2026-06-15', priority: 'Low',    status: 'resolved',    description: 'Window handle snapped off in office.', assignee: 'Mike Fundi' },
-  { id: 3, title: 'Electrical Fault',          unit: 'A-101', property: 'Serra Apartments',  date: '2026-06-20', priority: 'High',   status: 'in-progress', description: 'Tripping circuit breaker in unit.', assignee: 'Dan Electrician' },
-  { id: 4, title: 'Roof Leak',                 unit: 'D-401', property: 'LSU Logistics',     date: '2026-06-18', priority: 'High',   status: 'pending',     description: 'Water seeping through roof during rain.', assignee: 'Unassigned' },
-  { id: 5, title: 'Broken Door Lock',          unit: 'A-102', property: 'Serra Apartments',  date: '2026-06-14', priority: 'Medium', status: 'resolved',    description: 'Front door deadbolt not engaging.', assignee: 'Mike Fundi' },
-  { id: 6, title: 'Clogged Drainage',          unit: 'B-102', property: 'Serra Apartments',  date: '2026-06-21', priority: 'Medium', status: 'pending',     description: 'Bathroom drain completely blocked.', assignee: 'John Plumber' },
-];
+import { usePropertyStore } from '@/stores/propertyStore';
+import { useUnitStore } from '@/stores/unitStore';
 
 const PRIORITIES = ['High', 'Medium', 'Low'];
-const PROPERTIES = ['Serra Apartments', 'SOJAG Office', 'LSU Logistics'];
-const FORM_INIT  = { title: '', unit: '', property: PROPERTIES[0], priority: 'Medium' as const, description: '', assignee: '' };
 
 const STATUS_CHART = [
   { label: 'Pending',     value: 0, fill: '#f59e0b' },
@@ -43,30 +24,39 @@ const STATUS_CHART = [
 
 export const Maintenance: React.FC = () => {
   const { tenants } = useBillingStore();
-  // Build unit options: active tenants first, then any extras from existing tickets
-  const tenantUnits = tenants
-    .filter(t => t.status === 'active')
-    .map(t => ({ value: t.unit, label: `${t.unit} — ${t.first_name} ${t.last_name} (${t.property})` }));
-  // Fallback list for units not yet linked to tenants
-  const EXTRA_UNITS = ['A-103', 'B-203', 'C-302', 'D-401'].map(u => ({ value: u, label: u }));
-  const allUnits = [
-    ...tenantUnits,
-    ...EXTRA_UNITS.filter(e => !tenantUnits.some(t => t.value === e.value)),
-  ];
+  const { tickets: storeTickets, addTicket, updateTicket, deleteTicket } = useMaintenanceStore();
+  const { properties } = usePropertyStore();
+  const { units } = useUnitStore();
 
-  const [tickets, setTickets]     = useState<Ticket[]>(MOCK_TICKETS);
+  // Create derived options dynamically
+  const liveProperties = properties.map(p => p.name);
+  const liveUnits = units.map(u => ({
+    value: u.id,
+    label: `${u.unit_number} — ${u.property}`
+  }));
+  
+  const allUnits = liveUnits.length > 0 ? liveUnits : [{ value: '', label: 'No units available' }];
+
+  const FORM_INIT  = { title: '', unit: '', property: liveProperties[0] || '', priority: 'Medium' as const, description: '', assignee: '' };
+
+  const [tickets, setTickets]     = useState<Ticket[]>([]);
+
+  useEffect(() => {
+    setTickets(storeTickets);
+  }, [storeTickets]);
+
   const [searchTerm, setSearch]   = useState('');
   const [statusFilter, setStatus] = useState('all');
   const [prioFilter, setPrio]     = useState('all');
   const [showFilter, setFilter]   = useState(false);
   const [showAdd, setShowAdd]     = useState(false);
   const [viewTicket, setView]     = useState<Ticket | null>(null);
-  const [openMenu, setMenu]       = useState<number | null>(null);
+  const [openMenu, setMenu]       = useState<string | null>(null);
   const [form, setForm]           = useState(FORM_INIT);
   const [formErr, setFormErr]     = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const filterRef    = useRef<HTMLDivElement>(null);
-  const { success } = useToast();
+  const { success, error: errorToast } = useToast();
 
   useGSAP(
     () => {
@@ -101,30 +91,38 @@ export const Maintenance: React.FC = () => {
     value: tickets.filter(t => t.status === (d.label === 'In Progress' ? 'in-progress' : d.label.toLowerCase())).length,
   }));
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) { setFormErr('Issue description is required.'); return; }
     if (!form.unit.trim())  { setFormErr('Unit is required.'); return; }
     setFormErr('');
-    const next: Ticket = {
-      id: Date.now(), ...form,
-      date: new Date().toISOString().split('T')[0],
+    
+    const next: any = {
+      ...form,
       status: 'pending',
     };
-    setTickets(prev => [next, ...prev]);
-    success('Ticket created', `#TKT-${String(next.id).slice(-4)} – ${form.title}`);
+    
+    const res = await addTicket(next);
+    if (res.error) {
+      setFormErr(res.error);
+      return;
+    }
+    
+    success('Ticket created', `${form.title}`);
     setForm(FORM_INIT);
     setShowAdd(false);
   }
 
-  function handleResolve(id: number) {
-    setTickets(prev => prev.map(t => t.id === id ? { ...t, status: 'resolved' } : t));
+  async function handleResolve(id: string) {
+    const res = await updateTicket(id, { status: 'resolved' });
+    if (res && res.error) { errorToast('Failed to resolve', res.error); return; }
     success('Ticket resolved', 'Status updated to Resolved.');
     setMenu(null);
   }
 
-  function handleDelete(id: number) {
-    setTickets(prev => prev.filter(t => t.id !== id));
+  async function handleDelete(id: string) {
+    const res = await deleteTicket(id);
+    if (res && res.error) { errorToast('Failed to delete', res.error); return; }
     success('Ticket deleted', 'Maintenance ticket removed.');
     setMenu(null);
   }
@@ -284,7 +282,7 @@ export const Maintenance: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
                         <button type="button" className="btn-icon" style={{ width: 30, height: 30, border: 'none' }} onClick={() => setMenu(openMenu === ticket.id ? null : ticket.id)}>
                           <MoreVertical size={14} />
                         </button>
@@ -331,7 +329,7 @@ export const Maintenance: React.FC = () => {
             <div>
               <label className="modal-label">Property</label>
               <select aria-label="Property" className="modal-input" value={form.property} onChange={e => setForm(f => ({ ...f, property: e.target.value }))}>
-                {PROPERTIES.map(p => <option key={p}>{p}</option>)}
+                {liveProperties.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
             <div>

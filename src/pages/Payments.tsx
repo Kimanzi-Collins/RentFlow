@@ -22,14 +22,7 @@ import type { TenantConfig, RentRecord } from '@/stores/billingStore';
 
 // ─── Revenue trend (static for now, will be dynamic with Supabase) ──────────
 
-const REVENUE_TREND = [
-  { month: 'Jan', expected: 141000, collected: 141000 },
-  { month: 'Feb', expected: 141000, collected: 141000 },
-  { month: 'Mar', expected: 176000, collected: 176000 },
-  { month: 'Apr', expected: 176000, collected: 140000 },
-  { month: 'May', expected: 176000, collected: 151000 },
-  { month: 'Jun', expected: 141000, collected: 35000  },
-];
+// Revenue trend will be computed dynamically inside the component
 
 // ─── Payment modal ────────────────────────────────────────────────────────────
 
@@ -43,7 +36,7 @@ interface PayModalProps {
 }
 
 const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, onClose }) => {
-  const { recordPayment, markWaterPaid, waterReadings, rentRecords, ensureRentRecord } = useBillingStore();
+  const { recordPayment, recordWaterPayment, waterReadings, rentRecords, ensureRentRecord } = useBillingStore();
   const { success } = useToast();
   const periods = getAvailablePeriods();
 
@@ -53,39 +46,49 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
   const [note, setNote]       = useState('');
   const [err, setErr]         = useState('');
 
-  // Resolve balances for each type using selectedPeriod (not initial)
-  const periodRecord = rentRecords.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod) ?? record;
-  const rentBalance  = periodRecord ? periodRecord.balance : tenant.rent_amount;
-  const waterReading = waterReadings.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod);
-  const waterBalance = waterReading?.status === 'paid' ? 0 : (waterReading?.amount ?? 0);
+  // Compute balances fresh every render so switching period/type always shows correct amounts
+  const periodRecord   = rentRecords.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod) ?? record;
+  const rentBalance    = periodRecord ? periodRecord.balance : tenant.rent_amount;
+  // All outstanding water readings for this tenant (across all periods)
+  const outstandingWater = waterReadings.filter(r => r.tenant_id === tenant.id && r.status === 'outstanding');
+  const waterReading   = waterReadings.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod);
+  const periodWaterBal = waterReading?.balance ?? 0;
+  const totalWaterBal  = outstandingWater.reduce((s, r) => s + r.balance, 0);
 
-  const activeBalance = payType === 'rent' ? rentBalance : waterBalance;
-  const [amount, setAmount] = useState(String(activeBalance));
+  const [amount, setAmount] = useState(String(rentBalance > 0 ? rentBalance : ''));
 
-  // Keep amount in sync when type or period changes
+  // Recompute amount whenever tenant / period / type changes — compute fresh inside effect
   React.useEffect(() => {
-    setAmount(String(payType === 'rent' ? rentBalance : waterBalance));
+    const rRec  = rentRecords.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod) ?? record;
+    const rBal  = rRec ? rRec.balance : tenant.rent_amount;
+    const wRec  = waterReadings.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod);
+    const wBal  = wRec?.balance ?? 0;
+    const bal   = payType === 'rent' ? rBal : wBal;
+    setAmount(String(bal > 0 ? bal : ''));
     setErr('');
-  }, [payType, selectedPeriod]);
+  }, [payType, selectedPeriod, tenant.id]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const n = Number(amount);
     if (!n || n <= 0) { setErr('Enter a valid amount.'); return; }
 
     if (payType === 'rent') {
       const { year, month } = parsePeriodKey(selectedPeriod);
-      ensureRentRecord(tenant.id, year, month);
+      await ensureRentRecord(tenant.id, year, month);
       if (n > rentBalance) { setErr(`Amount exceeds rent balance of KSh ${rentBalance.toLocaleString()}.`); return; }
       setErr('');
-      recordPayment(tenant.id, selectedPeriod, n, method, note || undefined);
-      success('Rent payment recorded', `KSh ${n.toLocaleString()} from ${tenant.first_name} ${tenant.last_name}`);
+      const res: any = await recordPayment(tenant.id, selectedPeriod, n, method, note || undefined);
+      if (res && res.error) { setErr(res.error); return; }
+      success('Rent payment recorded', `KSh ${n.toLocaleString()} — ${tenant.first_name} ${tenant.last_name}`);
     } else {
-      if (!waterReading) { setErr('No water reading found for this period.'); return; }
+      if (!waterReading) { setErr('No water reading found for this period. Select the correct month.'); return; }
       if (waterReading.status === 'paid') { setErr('Water bill for this period is already fully paid.'); return; }
+      if (n > periodWaterBal) { setErr(`Amount exceeds water balance of KSh ${periodWaterBal.toLocaleString()}.`); return; }
       setErr('');
-      markWaterPaid(tenant.id, selectedPeriod);
-      success('Water payment recorded', `KSh ${waterReading.amount.toLocaleString()} — Unit ${tenant.unit} cleared`);
+      const res = await recordWaterPayment(waterReading.id, n);
+      if (res?.error) { setErr(res.error); return; }
+      success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${tenant.unit}`);
     }
     onClose();
   }
@@ -95,13 +98,13 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
       {err && <div className="modal-error">{err}</div>}
 
       {/* Tenant summary */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '12px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px 14px' }}>
         <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-          {tenant.first_name[0]}{tenant.last_name[0]}
+          {(tenant.first_name?.[0] || '') + (tenant.last_name?.[0] || '')}
         </div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#e2eeff' }}>{tenant.first_name} {tenant.last_name}</div>
-          <div style={{ fontSize: 12, color: 'rgba(226,238,255,0.5)' }}>Unit {tenant.unit}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{tenant.first_name} {tenant.last_name}</div>
+          <div style={{ fontSize: 12, color: '#6b7280' }}>Unit {tenant.unit}</div>
         </div>
       </div>
 
@@ -119,18 +122,20 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
         <label className="modal-label">Payment Type</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {([
-            { key: 'rent',  label: '🏠 Rent',  desc: `KSh ${rentBalance.toLocaleString()} due`  },
-            { key: 'water', label: '💧 Water', desc: waterReading ? (waterReading.status === 'paid' ? 'Already paid' : `KSh ${waterBalance.toLocaleString()} billed`) : 'No reading this period' },
+            { key: 'rent',  label: '🏠 Rent',  desc: `KSh ${rentBalance.toLocaleString()} outstanding`  },
+            { key: 'water', label: '💧 Water', desc: waterReading ? (waterReading.status === 'paid' ? '✓ Paid' : `KSh ${periodWaterBal.toLocaleString()} outstanding`) : totalWaterBal > 0 ? `KSh ${totalWaterBal.toLocaleString()} across all periods` : 'No outstanding water bills' },
           ] as const).map(t => (
             <button key={t.key} type="button" onClick={() => setPayType(t.key)}
               style={{
-                padding: '10px 14px', borderRadius: 10, border: `2px solid ${payType === t.key ? '#fff' : 'rgba(255,255,255,0.12)'}`,
-                background: payType === t.key ? 'rgba(255,255,255,0.1)' : 'transparent',
-                color: '#e2eeff', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+                padding: '10px 14px', borderRadius: 10,
+                border: `2px solid ${payType === t.key ? '#171717' : '#e5e7eb'}`,
+                background: payType === t.key ? '#171717' : '#f9fafb',
+                color: payType === t.key ? '#ffffff' : '#374151',
+                textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'all 0.18s',
               }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>{t.label}</div>
-              <div style={{ fontSize: 11, color: 'rgba(226,238,255,0.5)', marginTop: 2 }}>{t.desc}</div>
+              <div style={{ fontSize: 11, color: payType === t.key ? 'rgba(255,255,255,0.65)' : '#6b7280', marginTop: 2 }}>{t.desc}</div>
             </button>
           ))}
         </div>
@@ -194,8 +199,13 @@ export const Payments: React.FC = () => {
   const activeTenants    = tenants.filter(t => t.status === 'active');
   const periodRecords    = getRentForPeriod(selectedPeriod);
 
-  // Build the full table: one row per active tenant
-  const rows = activeTenants.map(tenant => {
+  // Build the full table: one row per active tenant whose move-in is on/before the selected period
+  const rows = activeTenants
+    .filter(tenant => {
+      if (!tenant.move_in_date) return true;
+      return tenant.move_in_date.slice(0, 7) <= selectedPeriod;
+    })
+    .map(tenant => {
     const record = periodRecords.find(r => r.tenant_id === tenant.id) ?? null;
     const rentDue = record?.rent_due ?? tenant.rent_amount;
     const paid    = record?.amount_paid ?? 0;
@@ -214,6 +224,21 @@ export const Payments: React.FC = () => {
     const order = { unpaid: 0, partial: 1, paid: 2 };
     return order[a.status] - order[b.status];
   });
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const revenueTrendData = React.useMemo(() => {
+    return periods.slice(0, 6).reverse().map(p => {
+      const recs = getRentForPeriod(p.key);
+      const expected = tenants.reduce((s, t) => {
+        const rec = recs.find(r => r.tenant_id === t.id);
+        if (rec) return s + rec.rent_due;
+        return s + (t.status === 'active' ? t.rent_amount : 0);
+      }, 0);
+      const collected = recs.reduce((s, r) => s + r.amount_paid, 0);
+      const { month } = parsePeriodKey(p.key);
+      return { month: monthNames[month - 1], expected, collected };
+    });
+  }, [periods, tenants, getRentForPeriod]);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -309,8 +334,8 @@ export const Payments: React.FC = () => {
             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 3, background: '#171717', borderRadius: 2, display: 'inline-block' }} />Collected</span>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={160}>
-          <AreaChart data={REVENUE_TREND} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={180}>
+          <AreaChart data={revenueTrendData} margin={{ top: 10, right: 0, left: -24, bottom: 0 }}>
             <defs>
               <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#e5e7eb" stopOpacity={0.5} />
@@ -361,7 +386,7 @@ export const Payments: React.FC = () => {
                         style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#171717', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                            {tenant.first_name[0]}{tenant.last_name[0]}
+                            {(tenant.first_name?.[0] || '') + (tenant.last_name?.[0] || '')}
                           </div>
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 4 }}>

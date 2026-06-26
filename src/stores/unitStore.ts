@@ -1,49 +1,123 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { supabase } from '@/lib/supabase';
+import { usePropertyStore } from './propertyStore';
 
 export interface Unit {
-  id: number;
+  id: string;
+  property_id: string;
   unit_number: string;
-  property: string;
-  type: string;
   rent_amount: number;
+  bedrooms: number;
   status: 'occupied' | 'vacant' | 'maintenance';
-  tenant?: string;
+  property?: string; // Derived name for UI mapping
+  type?: string;     // Derived for UI
+  tenant?: string;   // Derived for UI
 }
-
-const SEED: Unit[] = [
-  { id:  1, unit_number: 'A-101', property: 'Serra Apartments',  type: 'Residential', rent_amount: 35000, status: 'occupied',    tenant: 'Grace Wanjiku'  },
-  { id:  2, unit_number: 'A-102', property: 'Serra Apartments',  type: 'Residential', rent_amount: 32000, status: 'occupied',    tenant: 'John Kamau'    },
-  { id:  3, unit_number: 'A-103', property: 'Serra Apartments',  type: 'Residential', rent_amount: 32000, status: 'vacant'                               },
-  { id:  4, unit_number: 'A-104', property: 'Serra Apartments',  type: 'Residential', rent_amount: 18000, status: 'occupied',    tenant: 'James Mwangi'  },
-  { id:  5, unit_number: 'B-102', property: 'Serra Apartments',  type: 'Residential', rent_amount: 30000, status: 'occupied',    tenant: 'Samuel Njoroge'},
-  { id:  6, unit_number: 'B-203', property: 'Serra Apartments',  type: 'Residential', rent_amount: 38000, status: 'vacant'                               },
-  { id:  7, unit_number: 'B-204', property: 'Serra Apartments',  type: 'Residential', rent_amount: 45000, status: 'occupied',    tenant: 'Peter Ochieng' },
-  { id:  8, unit_number: 'C-301', property: 'SOJAG Head Office', type: 'Commercial',  rent_amount: 25000, status: 'occupied',    tenant: 'Fatuma Hassan' },
-  { id:  9, unit_number: 'C-302', property: 'SOJAG Head Office', type: 'Commercial',  rent_amount: 25000, status: 'vacant'                               },
-  { id: 10, unit_number: 'D-401', property: 'LSU Logistics',     type: 'Industrial',  rent_amount: 85000, status: 'maintenance'                          },
-];
 
 interface UnitState {
   units: Unit[];
-  addUnit:    (u: Omit<Unit, 'id'>) => void;
-  updateUnit: (id: number, updates: Partial<Unit>) => void;
-  removeUnit: (id: number) => void;
+  loading: boolean;
+  error: string | null;
+  fetchUnits: () => Promise<void>;
+  addUnit: (u: Omit<Unit, 'id' | 'property' | 'type' | 'tenant'>) => Promise<{ error?: string }>;
+  updateUnit: (id: string, updates: Partial<Unit>) => Promise<{ error?: string }>;
+  removeUnit: (id: string) => Promise<{ error?: string }>;
 }
 
-export const useUnitStore = create<UnitState>()(
-  persist(
-    (set, get) => ({
-      units: SEED,
-      addUnit: (u) => {
-        const newId = Math.max(0, ...get().units.map(x => x.id)) + 1;
-        set(s => ({ units: [...s.units, { ...u, id: newId }] }));
-      },
-      updateUnit: (id, updates) =>
-        set(s => ({ units: s.units.map(u => u.id === id ? { ...u, ...updates } : u) })),
-      removeUnit: (id) =>
-        set(s => ({ units: s.units.filter(u => u.id !== id) })),
-    }),
-    { name: 'rentflow-units-v1' }
-  )
-);
+export const useUnitStore = create<UnitState>()((set, get) => ({
+  units: [],
+  loading: false,
+  error: null,
+
+  fetchUnits: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .select(`
+          *,
+          properties(name),
+          leases(tenants(full_name))
+        `);
+
+      if (error) {
+        console.error('[unitStore] fetchUnits error:', error);
+        throw error;
+      }
+
+      const mapped = (data || []).map(u => {
+        // Find the active lease, or just the first lease if none specified
+        const lease = u.leases?.[0];
+        const tenantName = lease?.tenants?.full_name || undefined;
+
+        return {
+          ...u,
+          property: u.properties?.name || 'Unknown',
+          type: 'Residential', // Defaulting since we don't have this in schema yet
+          tenant: tenantName,
+        };
+      });
+
+      set({ units: mapped as Unit[] });
+    } catch (err) {
+      set({ error: (err as Error).message });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  addUnit: async (u) => {
+    try {
+      const { error } = await supabase
+        .from('units')
+        .insert(u);
+
+      if (error) throw error;
+      await get().fetchUnits();
+      return {};
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  },
+
+  updateUnit: async (id, updates) => {
+    try {
+      // Strip derived fields before sending to DB
+      const { property, type, tenant, ...dbUpdates } = updates;
+      
+      const { error } = await supabase
+        .from('units')
+        .update(dbUpdates)
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().fetchUnits();
+      return {};
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  },
+
+  removeUnit: async (id) => {
+    try {
+      // Block deletion if there is an active lease on this unit
+      const { data: activeLeases } = await supabase
+        .from('leases').select('id').eq('unit_id', id).eq('is_active', true);
+      if (activeLeases?.length) {
+        return { error: 'Cannot delete: unit has an active tenant. Remove the tenant\'s lease first.' };
+      }
+
+      // Cascade: maintenance requests → inactive leases → unit
+      await supabase.from('maintenance_requests').delete().eq('unit_id', id);
+      await supabase.from('leases').delete().eq('unit_id', id);
+
+      const { error } = await supabase.from('units').delete().eq('id', id);
+      if (error) throw error;
+
+      await get().fetchUnits();
+      return {};
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  }
+}));

@@ -18,18 +18,21 @@ import Modal from '@/components/ui/Modal';
 import {
   useBillingStore, getAvailablePeriods, parsePeriodKey, CURRENT_PERIOD_KEY,
 } from '@/stores/billingStore';
+import { usePropertyStore } from '@/stores/propertyStore';
+import { useUnitStore } from '@/stores/unitStore';
+import { useMaintenanceStore } from '@/stores/maintenanceStore';
 
 // ── Quick Pay modal (dashboard shortcut) ────────────────────────────────────
 
 const METHODS = ['M-PESA', 'Bank Transfer', 'Cash', 'Cheque'];
 
 const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { tenants, rentRecords, waterReadings, recordPayment, markWaterPaid, ensureRentRecord } = useBillingStore();
+  const { tenants, rentRecords, waterReadings, recordPayment, recordWaterPayment, ensureRentRecord } = useBillingStore();
   const { success } = useToast();
   const activeTenants = tenants.filter(t => t.status === 'active');
   const periods = getAvailablePeriods();
 
-  const [tenantId, setTenantId]   = useState(activeTenants[0]?.id ?? 0);
+  const [tenantId, setTenantId]   = useState<string>(activeTenants[0]?.id ?? '');
   const [periodKey, setPeriodKey] = useState(CURRENT_PERIOD_KEY);
   const [payType, setPayType]     = useState<'rent' | 'water'>('rent');
   const [method, setMethod]       = useState('M-PESA');
@@ -37,20 +40,27 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [note, setNote]           = useState('');
   const [err, setErr]             = useState('');
 
-  const tenant      = activeTenants.find(t => t.id === tenantId);
-  const rentRecord  = rentRecords.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
-  const waterRecord = waterReadings.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
+  // Compute balances fresh every render
+  const tenant       = activeTenants.find(t => t.id === tenantId);
+  const rentRecord   = rentRecords.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
+  const waterRecord  = waterReadings.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
   const rentBalance  = rentRecord ? rentRecord.balance : (tenant?.rent_amount ?? 0);
-  const waterBalance = waterRecord?.status === 'paid' ? 0 : (waterRecord?.amount ?? 0);
+  const waterBalance = waterRecord?.balance ?? 0;
   const activeBalance = payType === 'rent' ? rentBalance : waterBalance;
 
-  // Auto-fill amount when selections change
+  // Auto-fill amount — compute INSIDE the effect to avoid stale closure
   React.useEffect(() => {
-    setAmount(String(activeBalance > 0 ? activeBalance : ''));
+    const t    = activeTenants.find(x => x.id === tenantId);
+    const rRec = rentRecords.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
+    const wRec = waterReadings.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
+    const rBal = rRec ? rRec.balance : (t?.rent_amount ?? 0);
+    const wBal = wRec?.balance ?? 0;
+    const bal  = payType === 'rent' ? rBal : wBal;
+    setAmount(String(bal > 0 ? bal : ''));
     setErr('');
   }, [tenantId, periodKey, payType]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!tenant) return;
     const n = Number(amount);
@@ -60,14 +70,20 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const { year, month } = parsePeriodKey(periodKey);
 
     if (payType === 'rent') {
-      ensureRentRecord(tenantId, year, month);
-      recordPayment(tenantId, periodKey, n, method, note || undefined);
+      await ensureRentRecord(tenantId, year, month);
+      const res: any = await recordPayment(tenantId, periodKey, n, method, note || undefined);
+      if (res && res.error) {
+        setErr(res.error);
+        return;
+      }
       success('Rent payment recorded', `KSh ${n.toLocaleString()} — ${tenant.first_name} ${tenant.last_name}`);
     } else {
       if (!waterRecord) { setErr('No water reading for this period.'); return; }
       if (waterRecord.status === 'paid') { setErr('Water bill already paid for this period.'); return; }
-      markWaterPaid(tenantId, periodKey);
-      success('Water payment recorded', `KSh ${waterBalance.toLocaleString()} — Unit ${tenant.unit}`);
+      if (n > waterBalance) { setErr(`Amount exceeds water balance of KSh ${waterBalance.toLocaleString()}.`); return; }
+      const res = await recordWaterPayment(waterRecord.id, n);
+      if (res?.error) { setErr(res.error); return; }
+      success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${tenant.unit}`);
     }
     onClose();
   }
@@ -80,7 +96,7 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div style={{ gridColumn: '1 / -1' }}>
           <label className="modal-label">Tenant</label>
           <select aria-label="Tenant" className="modal-input" value={tenantId}
-            onChange={e => setTenantId(Number(e.target.value))}>
+            onChange={e => setTenantId(e.target.value)}>
             {activeTenants.map(t => (
               <option key={t.id} value={t.id}>{t.first_name} {t.last_name} — Unit {t.unit}</option>
             ))}
@@ -124,13 +140,13 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
       {/* Balance preview */}
       {tenant && (
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'rgba(226,238,255,0.55)' }}>
-          <span style={{ fontWeight: 700, color: '#e2eeff' }}>{tenant.first_name} {tenant.last_name}</span>
+        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#6b7280' }}>
+          <span style={{ fontWeight: 700, color: '#111827' }}>{tenant.first_name} {tenant.last_name}</span>
           {' — '}
           {payType === 'rent'
             ? `Rent balance: KSh ${rentBalance.toLocaleString()}`
             : waterRecord
-              ? `Water bill: KSh ${waterRecord.amount.toLocaleString()} (${waterRecord.status})`
+              ? `Water ${waterRecord.status}: KSh ${waterRecord.balance.toLocaleString()} of KSh ${waterRecord.amount.toLocaleString()}`
               : 'No water reading for this period'}
         </div>
       )}
@@ -145,32 +161,7 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 // ── Data ───────────────────────────────────────────────────────────────────
 
-const OVERDUE_TENANTS_DATA = [
-  { name: 'James Mwangi',  unit: 'A-104', amount: 18000, days: 14, initials: 'JM', color: '#4f46e5' },
-  { name: 'Fatuma Hassan', unit: 'C-301', amount: 25000, days: 9,  initials: 'FH', color: '#ef4444' },
-  { name: 'Peter Ochieng', unit: 'B-204', amount: 45000, days: 2,  initials: 'PO', color: '#f59e0b' },
-];
-
-const COLLECTION_DATA_INIT = [
-  { day: 'Sun', amount: 32 },
-  { day: 'Mon', amount: 58 },
-  { day: 'Tue', amount: 82 },
-  { day: 'Wed', amount: 100 },
-  { day: 'Thu', amount: 74 },
-  { day: 'Fri', amount: 48 },
-  { day: 'Sat', amount: 28 },
-];
-
-const COLLECTION_PIE_DATA = [
-  { name: 'Collected', value: 87 },
-  { name: 'Pending',   value: 13 },
-];
-
-const TASKS_DATA = [
-  { icon: CreditCard, label: 'Review Overdue Rent',    date: 'Jun 22, 2026', color: '#4f46e5' },
-  { icon: Wrench,     label: 'Fix Plumbing – Unit A1', date: 'Jun 21, 2026', color: '#ef4444' },
-  { icon: Users,      label: 'Tenant Onboarding',      date: 'Jun 24, 2026', color: '#f59e0b' },
-];
+// (All dashboard data is now computed from live stores - see lines 230+)
 
 // ── Counter hook ───────────────────────────────────────────────────────────
 function useCounter(target: number, duration = 1400, delay = 300) {
@@ -207,7 +198,11 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export const Dashboard: React.FC = () => {
   const { profile, sessionStartTime, lastActivity } = useAuthStore();
-  const { tenants } = useBillingStore();
+  const { tenants, rentRecords, getTenantOutstanding, getRentForPeriod } = useBillingStore();
+  const { properties } = usePropertyStore();
+  const { units } = useUnitStore();
+  const { tickets } = useMaintenanceStore();
+
   const navigate = useNavigate();
   const { success, info } = useToast();
   const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'Admin';
@@ -217,19 +212,69 @@ export const Dashboard: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef    = useRef<HTMLDivElement>(null);
 
-  // Check if we have data to determine empty states
-  const hasData = tenants.length > 0;
+  // Computed data
+  const hasData = properties.length > 0 || tenants.length > 0;
 
-  const OVERDUE_TENANTS = hasData ? OVERDUE_TENANTS_DATA : [];
-  const TASKS = hasData ? TASKS_DATA : [];
-  const COLLECTION_DATA = hasData ? COLLECTION_DATA_INIT : COLLECTION_DATA_INIT.map(d => ({ ...d, amount: 0 }));
-  const COLLECTION_PIE = hasData ? COLLECTION_PIE_DATA : [{ name: 'Pending', value: 100 }];
+  const currentMonthRecs = rentRecords.filter(r => r.period_key === CURRENT_PERIOD_KEY);
+  const totalRentDue = currentMonthRecs.reduce((sum, r) => sum + r.rent_due, 0);
+  const totalRentPaid = currentMonthRecs.reduce((sum, r) => sum + r.amount_paid, 0);
+  const pendingRent = totalRentDue - totalRentPaid;
+
+  const COLLECTION_PIE = totalRentDue > 0 
+    ? [ { name: 'Collected', value: Math.round((totalRentPaid/totalRentDue)*100) }, { name: 'Pending', value: Math.round((pendingRent/totalRentDue)*100) } ]
+    : [ { name: 'Pending', value: 100 } ];
+
+  const activeTenantsCount = tenants.filter(t => t.status === 'active').length;
+  const occupancyPercentage = units.length > 0 ? Math.round((activeTenantsCount / units.length) * 100) : 0;
+
+  const OVERDUE_TENANTS = tenants.map(t => {
+    const outstanding = getTenantOutstanding(t.id);
+    return { ...t, amount: outstanding, name: `${t.first_name} ${t.last_name}`, initials: `${t.first_name?.[0] || ''}${t.last_name?.[0] || ''}`, days: 0, color: '#ef4444' };
+  }).filter(t => t.amount > 0).sort((a,b) => b.amount - a.amount).slice(0, 3);
+
+  const pendingTickets = tickets.filter(t => t.status !== 'resolved');
+  
+  const TASKS = pendingTickets.slice(0,3).map(t => ({
+    icon: Wrench, label: `${t.title} – ${t.unit}`, date: t.date, color: t.priority === 'High' ? '#ef4444' : '#f59e0b'
+  }));
+
+  // All-time collected revenue (not just current month)
+  const allTimeCollected = rentRecords.reduce((sum, r) => sum + r.amount_paid, 0);
+  const revMillions = allTimeCollected / 1_000_000;
+
+  const currentMonthNum = new Date().getMonth();
+  const createdThisMonth = properties.filter(p => {
+    try { return new Date(p.created_at || '').getMonth() === currentMonthNum; } catch { return false; }
+  }).length;
+
+  // Weekly collection from actual rent_transactions
+  const COLLECTION_DATA = React.useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const todayDay = today.getDay(); // 0 = Sun
+    const allTxns = rentRecords.flatMap(r => r.transactions ?? []);
+
+    return days.map((day, i) => {
+      const diff = i - todayDay;
+      const d = new Date(today);
+      d.setDate(today.getDate() + diff);
+      const dateStr = d.toISOString().split('T')[0];
+      const total = allTxns
+        .filter(t => t.date === dateStr)
+        .reduce((s, t) => s + t.amount, 0);
+      return { day, amount: Math.round(total / 1000), isToday: i === todayDay };
+    });
+  }, [rentRecords]);
+
+  const weeklyCollected = COLLECTION_DATA.reduce((s, d) => s + d.amount, 0);
+  const weeklyTotal = currentMonthRecs.reduce((s, r) => s + r.rent_due, 0) / 1000;
+  const weeklyPct = weeklyTotal > 0 ? Math.round((weeklyCollected / weeklyTotal) * 100) : 0;
 
   // Animated counters
-  const props24  = useCounter(hasData ? 24 : 0);
-  const rev18    = useCounter(hasData ? 18 : 0);
-  const occ88    = useCounter(hasData ? 88 : 0);
-  const issues12 = useCounter(hasData ? 12 : 0);
+  const props24  = useCounter(properties.length);
+  const rev18    = useCounter(revMillions * 10, 1400, 300);
+  const occ88    = useCounter(occupancyPercentage);
+  const issues12 = useCounter(pendingTickets.length);
 
   // Timer state based on active session
   const [timerRunning, setTimerRunning] = useState(true);
@@ -272,17 +317,18 @@ export const Dashboard: React.FC = () => {
 
   const currentDayOfWeek = new Date().getDay(); // 0 is Sunday, 6 is Saturday
 
+
+  const periods = getAvailablePeriods();
+
   const revenueTrend = React.useMemo(() => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currMonth = new Date().getMonth();
-    const trend = [];
-    const values = hasData ? [720, 850, 780, 920, 1050, 850] : [0, 0, 0, 0, 0, 0];
-    for (let i = 5; i >= 0; i--) {
-      const m = (currMonth - i + 12) % 12;
-      trend.push({ month: monthNames[m], value: values[5 - i] });
-    }
-    return trend;
-  }, [hasData]);
+    return periods.slice(0, 6).reverse().map(p => {
+      const recs = getRentForPeriod(p.key);
+      const collected = recs.reduce((sum, r) => sum + r.amount_paid, 0);
+      const { month } = parsePeriodKey(p.key);
+      return { month: monthNames[month - 1], value: collected / 1000 };
+    });
+  }, [periods, getRentForPeriod]);
 
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 32 }}>
@@ -325,7 +371,7 @@ export const Dashboard: React.FC = () => {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Properties</div>
           <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1, marginBottom: 10 }}>{props24}</div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: 'rgba(255,255,255,0.12)', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
-            <TrendingUp size={12} /> +2 this month
+            <TrendingUp size={12} /> +{createdThisMonth} this month
           </div>
         </div>
 
@@ -336,12 +382,19 @@ export const Dashboard: React.FC = () => {
             </div>
             <ArrowUpRight size={16} color="var(--text-muted)" />
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Total Revenue</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Monthly Expected</div>
           <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
-            {rev18}<span style={{ fontSize: 18, marginLeft: 2 }}>.2M</span>
+            {(() => {
+              const expected = tenants.filter(t => t.status === 'active').reduce((s, t) => s + t.rent_amount, 0);
+              return expected >= 1_000_000
+                ? `${(expected / 1_000_000).toFixed(1)}M`
+                : expected >= 1_000
+                ? `${Math.round(expected / 1_000)}K`
+                : expected.toLocaleString();
+            })()}
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: '#f0fdf4', color: '#10b981', padding: '4px 10px', borderRadius: 8, fontWeight: 700 }}>
-            <TrendingUp size={12} /> +12.5%
+            <TrendingUp size={12} /> Collected: KSh {totalRentPaid.toLocaleString()}
           </div>
         </div>
 
@@ -356,7 +409,7 @@ export const Dashboard: React.FC = () => {
           <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
             {occ88}<span style={{ fontSize: 18 }}>%</span>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>42 / 48 units filled</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{activeTenantsCount} / {units.length} units filled</div>
         </div>
 
         <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/maintenance')}>
@@ -369,8 +422,8 @@ export const Dashboard: React.FC = () => {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Open Issues</div>
           <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>{issues12}</div>
           <div style={{ fontSize: 12, fontWeight: 600 }}>
-            <span style={{ color: '#ef4444' }}>8 maintenance</span>
-            <span style={{ color: 'var(--text-muted)' }}> · 4 overdue</span>
+            <span style={{ color: '#ef4444' }}>{pendingTickets.length} maintenance</span>
+            <span style={{ color: 'var(--text-muted)' }}> · {OVERDUE_TENANTS.length} overdue rent</span>
           </div>
         </div>
       </div>
@@ -378,14 +431,15 @@ export const Dashboard: React.FC = () => {
       {/* ── Middle Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* Collection Analytics – Recharts Bar */}
         <div className="card-organic gsap-item">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Collection</h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>This week</p>
             </div>
-            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-main)' }}>74%</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-main)' }}>
+              {totalRentDue > 0 ? Math.round((totalRentPaid / totalRentDue) * 100) : weeklyPct}%
+            </span>
           </div>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={COLLECTION_DATA} barSize={10} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
@@ -412,7 +466,7 @@ export const Dashboard: React.FC = () => {
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Revenue Trend</h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>KSh (thousands)</p>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: '#f0fdf4', padding: '4px 10px', borderRadius: 8 }}>↑ 12.5%</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: '#f0fdf4', padding: '4px 10px', borderRadius: 8 }}>Live Data</div>
           </div>
           <ResponsiveContainer width="100%" height={160}>
             <AreaChart data={revenueTrend} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
@@ -501,7 +555,9 @@ export const Dashboard: React.FC = () => {
         <div className="card-organic gsap-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ alignSelf: 'flex-start' }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Collection Rate</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>June 2026</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </p>
           </div>
           <div style={{ position: 'relative', width: '100%', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ResponsiveContainer width="100%" height={180}>
@@ -520,7 +576,7 @@ export const Dashboard: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
             <div style={{ position: 'absolute', textAlign: 'center', pointerEvents: 'none' }}>
-              <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1 }}>87%</div>
+              <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1 }}>{COLLECTION_PIE[0]?.value || 0}%</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginTop: 3 }}>collected</div>
             </div>
           </div>

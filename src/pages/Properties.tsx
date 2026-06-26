@@ -14,7 +14,7 @@ import type { Property } from '@/stores/propertyStore';
 import { useBillingStore, CURRENT_PERIOD_KEY } from '@/stores/billingStore';
 
 const PROP_TYPES = ['Residential', 'Commercial', 'Industrial', 'Mixed Use'];
-const FORM_INIT: Omit<Property, 'id'> = {
+const FORM_INIT: Omit<Property, 'id' | 'landlord_id'> = {
   name: '', address: '', type: 'Residential', total_units: 0, occupied: 0, description: '',
 };
 
@@ -26,13 +26,13 @@ export const Properties: React.FC = () => {
   const { properties, addProperty, updateProperty, removeProperty } = usePropertyStore();
   const { tenants, getRentForPeriod } = useBillingStore();
   const navigate   = useNavigate();
-  const { success } = useToast();
+  const { success, error: errorToast } = useToast();
 
   const [searchTerm, setSearch]   = useState('');
   const [showAdd, setShowAdd]     = useState(false);
   const [editProp, setEditProp]   = useState<Property | null>(null);
-  const [openMenu, setOpenMenu]   = useState<number | null>(null);
-  const [form, setForm]           = useState<Omit<Property, 'id'>>(FORM_INIT);
+  const [openMenu, setOpenMenu]   = useState<string | null>(null);
+  const [form, setForm]           = useState<Omit<Property, 'id' | 'landlord_id'>>(FORM_INIT);
   const [formErr, setFormErr]     = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -77,24 +77,37 @@ export const Properties: React.FC = () => {
     const { id, ...rest } = p;
     setForm(rest); setFormErr(''); setShowAdd(true); setOpenMenu(null);
   }
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim())    { setFormErr('Property name is required.'); return; }
     if (!form.address.trim()) { setFormErr('Address is required.'); return; }
     setFormErr('');
+    
     if (editProp) {
-      updateProperty(editProp.id, form);
+      const res = await updateProperty(editProp.id, form);
+      if (res.error) {
+        setFormErr(res.error);
+        return;
+      }
       success('Property updated', `${form.name} has been updated.`);
     } else {
-      addProperty(form);
+      const res = await addProperty(form);
+      if (res.error) {
+        setFormErr(res.error);
+        return;
+      }
       success('Property added', `${form.name} added to your portfolio.`);
     }
     setShowAdd(false); setEditProp(null);
   }
-  function handleDelete(id: number) {
+  async function handleDelete(id: string) {
     const p = properties.find(x => x.id === id);
-    removeProperty(id);
-    success('Property removed', `${p?.name} removed.`);
+    const res: any = await removeProperty(id);
+    if (res && res.error) {
+      errorToast('Failed to delete', res.error);
+    } else {
+      success('Property removed', `${p?.name} removed.`);
+    }
     setOpenMenu(null);
   }
   function handleExport() {
@@ -170,7 +183,7 @@ export const Properties: React.FC = () => {
                     {property.type}
                   </span>
                 </div>
-                <div onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
+                <div onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
                   <button type="button" className="btn-icon" style={{ width: 30, height: 30, border: 'none' }}
                     onClick={() => setOpenMenu(openMenu === property.id ? null : property.id)}>
                     <MoreVertical size={14} />

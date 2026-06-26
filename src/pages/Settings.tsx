@@ -15,17 +15,27 @@ const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 const THEMES = ['Light', 'Dark', 'System'];
 
 export const Settings: React.FC = () => {
-  const { profile } = useAuthStore();
+  const { profile, updateProfile, uploadAvatar } = useAuthStore();
   const { success, error: toastErr } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const fullName = profile?.full_name || 'Admin User';
   const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   // Profile state
-  const [name, setName]         = useState(fullName);
-  const [phone, setPhone]       = useState('+254 712 345 678');
-  const [company, setCompany]   = useState('RentFlow Properties Ltd');
+  const [name, setName]         = useState(profile?.full_name || '');
+  const [phone, setPhone]       = useState(profile?.phone || '');
+  const [company, setCompany]   = useState(profile?.company_name || '');
+
+  React.useEffect(() => {
+    if (profile) {
+      setName(profile.full_name || '');
+      setPhone(profile.phone || '');
+      setCompany(profile.company_name || '');
+    }
+  }, [profile]);
 
   // Preferences state
   const [currency, setCurrency]     = useState(CURRENCIES[0]);
@@ -54,10 +64,32 @@ export const Settings: React.FC = () => {
     );
   }, { scope: containerRef });
 
-  function handleSaveProfile(e: React.FormEvent) {
+  async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { toastErr('Validation error', 'Name cannot be empty.'); return; }
-    success('Profile updated', 'Your profile information has been saved.');
+    
+    const { error } = await updateProfile({ full_name: name, phone, company_name: company });
+    
+    if (error) {
+      toastErr('Update failed', error);
+    } else {
+      success('Profile updated', 'Your profile information has been saved.');
+    }
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const { error } = await uploadAvatar(file);
+    setIsUploading(false);
+
+    if (error) {
+      toastErr('Upload failed', error);
+    } else {
+      success('Avatar updated', 'Your profile picture has been changed.');
+    }
   }
 
   function handleSavePassword(e: React.FormEvent) {
@@ -90,33 +122,6 @@ export const Settings: React.FC = () => {
     boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.03)',
   };
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Simulate upload delay
-    toastErr('Uploading...', 'Your avatar is being uploaded.');
-    
-    setTimeout(() => {
-      // Set local preview
-      const objectUrl = URL.createObjectURL(file);
-      setAvatarUrl(objectUrl);
-      
-      // Toast notification for successful upload
-      success('Avatar uploaded', 'Your profile picture has been updated successfully.');
-      
-      // Wire avatars to Supabase (Setup later)
-      // const fileExt = file.name.split('.').pop();
-      // const fileName = `${Math.random()}.${fileExt}`;
-      // const filePath = `avatars/${fileName}`;
-      // supabase.storage.from('avatars').upload(filePath, file);
-      // supabase.auth.updateUser({ data: { avatar_url: filePath } });
-    }, 1500);
-  }
-
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760, paddingBottom: 32 }}>
       {/* Header */}
@@ -137,22 +142,30 @@ export const Settings: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28 }}>
           <div style={{ position: 'relative' }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#171717', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, overflow: 'hidden' }}>
-              {avatarUrl ? <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials}
+              {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials}
             </div>
             <input 
               type="file" 
               ref={fileInputRef} 
               style={{ display: 'none' }} 
-              accept="image/*"
-              onChange={handleAvatarUpload}
+              accept="image/*" 
+              onChange={handleAvatarChange}
             />
-            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: '#fff', border: '2px solid var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
-              <Camera size={12} />
+            <button 
+              type="button"
+              className="avatar-edit-btn" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              style={{ position: 'absolute', bottom: -2, right: -2, width: 28, height: 28, borderRadius: '50%', background: '#10b981', border: '2px solid #fff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isUploading ? 'wait' : 'pointer', opacity: isUploading ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+            >
+              <Camera size={14} />
             </button>
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{fullName}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Administrator · RentFlow</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{profile?.full_name || 'User'}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+              {profile?.role === 'landlord' ? 'Landlord' : 'Caretaker'} · RentFlow
+            </div>
           </div>
         </div>
 
@@ -163,15 +176,15 @@ export const Settings: React.FC = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-main)' }}>Email Address</label>
-            <input type="email" className="input-organic" defaultValue="admin@rentflow.co.ke" disabled style={{ background: 'var(--surface-hover)', cursor: 'not-allowed', opacity: 0.7 }} />
+            <input type="email" className="input-organic" defaultValue={profile?.email || ''} disabled style={{ background: 'var(--surface-hover)', cursor: 'not-allowed', opacity: 0.7 }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-main)' }}>Phone Number</label>
-            <input type="tel" className="input-organic" value={phone} onChange={e => setPhone(e.target.value)} />
+            <input type="tel" className="input-organic" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. +254 700 000000" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-main)' }}>Company / Agency</label>
-            <input type="text" className="input-organic" value={company} onChange={e => setCompany(e.target.value)} />
+            <input type="text" className="input-organic" value={company} onChange={e => setCompany(e.target.value)} placeholder="e.g. Sunset Properties Ltd" />
           </div>
         </div>
 

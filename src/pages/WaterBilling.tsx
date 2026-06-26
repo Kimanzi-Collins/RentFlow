@@ -42,13 +42,19 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
   const totalBill   = consumed * Number(rate);
   const showPreview = Number(curr) > prevReading;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!curr) { setErr('Current reading is required.'); return; }
     if (Number(curr) < prevReading) { setErr(`Current reading (${curr}) cannot be less than previous (${prevReading}).`); return; }
     if (!rate || Number(rate) <= 0) { setErr('Rate per unit must be greater than 0.'); return; }
     setErr('');
-    recordWaterReading(tenant.id, tenant.unit, year, month, Number(curr), Number(rate));
+    
+    const res: any = await recordWaterReading(tenant.id, tenant.unit, year, month, Number(curr), Number(rate));
+    if (res && res.error) {
+      setErr(res.error);
+      return;
+    }
+    
     success('Reading recorded', `${tenant.first_name} – Unit ${tenant.unit}: ${consumed} m³ × KSh ${rate} = KSh ${totalBill.toLocaleString()}`);
     onClose();
   }
@@ -57,11 +63,11 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {err && <div className="modal-error">{err}</div>}
 
-      <div style={{ display: 'flex', gap: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
-        <Droplets size={16} color="#4d7cff" style={{ flexShrink: 0, marginTop: 2 }} />
+      <div style={{ display: 'flex', gap: 12, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '12px 14px' }}>
+        <Droplets size={16} color="#0284c7" style={{ flexShrink: 0, marginTop: 2 }} />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#e2eeff' }}>{tenant.first_name} {tenant.last_name} — Unit {tenant.unit}</div>
-          <div style={{ fontSize: 12, color: 'rgba(226,238,255,0.5)', marginTop: 2 }}>{tenant.property}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{tenant.first_name} {tenant.last_name} — Unit {tenant.unit}</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{tenant.property}</div>
         </div>
       </div>
 
@@ -86,14 +92,14 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
       </div>
 
       {showPreview && (
-        <div style={{ background: 'rgba(77,124,255,0.08)', border: '1px solid rgba(77,124,255,0.2)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(226,238,255,0.6)' }}>
-            <span>Units consumed</span><span>{consumed.toLocaleString()} m³</span>
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151' }}>
+            <span>Units consumed</span><span style={{ fontWeight: 600 }}>{consumed.toLocaleString()} m³</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(226,238,255,0.6)' }}>
-            <span>Rate</span><span>KSh {Number(rate).toLocaleString()} / m³</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151' }}>
+            <span>Rate</span><span style={{ fontWeight: 600 }}>KSh {Number(rate).toLocaleString()} / m³</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800, color: '#e2eeff', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800, color: '#111827', paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
             <span>Water Bill</span><span>KSh {totalBill.toLocaleString()}</span>
           </div>
         </div>
@@ -107,19 +113,93 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
   );
 };
 
+// ─── Pay water bill form ──────────────────────────────────────────────────────
+
+const WATER_METHODS = ['M-PESA', 'Bank Transfer', 'Cash', 'Cheque'];
+
+const WaterPayForm: React.FC<{
+  reading: WaterReading & { tenant: TenantConfig };
+  onClose: () => void;
+}> = ({ reading, onClose }) => {
+  const { recordWaterPayment } = useBillingStore();
+  const { success } = useToast();
+  const [amount, setAmount] = useState(String(reading.balance));
+  const [method, setMethod] = useState('M-PESA');
+  const [err, setErr]       = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const n = Number(amount);
+    if (!n || n <= 0) { setErr('Enter a valid amount.'); return; }
+    if (n > reading.balance) { setErr(`Amount exceeds outstanding balance of KSh ${reading.balance.toLocaleString()}.`); return; }
+    setErr('');
+    const res = await recordWaterPayment(reading.id, n);
+    if (res?.error) { setErr(res.error); return; }
+    success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${reading.unit}`);
+    onClose();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {err && <div className="modal-error">{err}</div>}
+
+      {/* Bill summary */}
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151' }}>
+          <span>Period</span>
+          <span style={{ fontWeight: 600 }}>{reading.period}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151' }}>
+          <span>Total bill</span>
+          <span style={{ fontWeight: 600 }}>KSh {reading.amount.toLocaleString()}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151' }}>
+          <span>Already paid</span>
+          <span style={{ fontWeight: 600, color: reading.amount_paid > 0 ? '#059669' : '#6b7280' }}>KSh {reading.amount_paid.toLocaleString()}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800, color: '#111827', paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+          <span>Outstanding balance</span>
+          <span style={{ color: '#dc2626' }}>KSh {reading.balance.toLocaleString()}</span>
+        </div>
+      </div>
+
+      <div className="modal-form-grid">
+        <div>
+          <label className="modal-label">Amount to Pay (KES) *</label>
+          <input className="modal-input" type="number" min="1" max={reading.balance}
+            aria-label="Amount to pay in KES" placeholder={`Max KSh ${reading.balance.toLocaleString()}`}
+            value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
+        </div>
+        <div>
+          <label className="modal-label">Payment Method</label>
+          <select aria-label="Payment method" className="modal-input" value={method} onChange={e => setMethod(e.target.value)}>
+            {WATER_METHODS.map(m => <option key={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="modal-form-actions">
+        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
+        <button type="submit" className="modal-btn-submit">Record Payment</button>
+      </div>
+    </form>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export const WaterBilling: React.FC = () => {
   const {
     tenants, getWaterForPeriod, recordWaterReading,
-    updateTenant,
+    updateTenant, recordWaterPayment,
   } = useBillingStore();
 
   const periods = getAvailablePeriods();
   const [selectedPeriod, setSelectedPeriod] = useState(CURRENT_PERIOD_KEY);
   const [showPeriodDrop, setPeriodDrop]     = useState(false);
-  const [recordModal, setRecordModal]       = useState<{ tenant: TenantConfig; existing?: WaterReading } | null>(null);
-  const [editRateFor, setEditRateFor]       = useState<number | null>(null);
+  const [recordModal, setRecordModal]   = useState<{ tenant: TenantConfig; existing?: WaterReading } | null>(null);
+  const [payWaterModal, setPayWaterModal] = useState<(WaterReading & { tenant: TenantConfig }) | null>(null);
+  const [editRateFor, setEditRateFor]   = useState<string | null>(null);
   const [tempRate, setTempRate]             = useState('');
   const periodDropRef = useRef<HTMLDivElement>(null);
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -161,10 +241,16 @@ export const WaterBilling: React.FC = () => {
     })));
   }
 
-  function saveRate(tenantId: number) {
+  async function saveRate(tenantId: string) {
     const parsed = parseFloat(tempRate);
     if (!parsed || parsed <= 0) return;
-    updateTenant(tenantId, { water_rate: parsed });
+    
+    const res: any = await updateTenant(tenantId, { water_rate: parsed });
+    if (res && res.error) {
+      errorToast('Failed to update rate', res.error);
+      return;
+    }
+    
     success('Rate updated', `New rate: KSh ${parsed}/m³`);
     setEditRateFor(null);
   }
@@ -245,11 +331,13 @@ export const WaterBilling: React.FC = () => {
               <tr>
                 <th>Tenant</th>
                 <th>Unit</th>
-                <th>Prev Reading</th>
-                <th>Curr Reading</th>
-                <th>Consumed (m³)</th>
-                <th>Rate (KES/m³)</th>
+                <th>Prev</th>
+                <th>Curr</th>
+                <th>Consumed</th>
+                <th>Rate</th>
                 <th>Bill (KES)</th>
+                <th>Paid (KES)</th>
+                <th>Balance (KES)</th>
                 <th>Status</th>
                 <th><span className="sr-only">Action</span></th>
               </tr>
@@ -293,11 +381,17 @@ export const WaterBilling: React.FC = () => {
                     <td style={{ fontWeight: 800 }}>
                       {r ? `KSh ${r.amount.toLocaleString()}` : '—'}
                     </td>
+                    <td style={{ fontWeight: 600, color: r?.amount_paid ? '#059669' : 'var(--text-muted)' }}>
+                      {r ? `KSh ${r.amount_paid.toLocaleString()}` : '—'}
+                    </td>
+                    <td style={{ fontWeight: 800, color: r?.balance ? '#dc2626' : '#059669' }}>
+                      {r ? `KSh ${r.balance.toLocaleString()}` : '—'}
+                    </td>
                     <td>
                       {r ? (
-                        <span className={`badge ${r.status === 'paid' ? 'badge-success' : 'badge-info'}`}>
+                        <span className={`badge ${r.status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
                           <span className="badge-dot" />
-                          {r.status === 'paid' ? 'Paid' : 'Billed'}
+                          {r.status === 'paid' ? 'Paid' : 'Outstanding'}
                         </span>
                       ) : (
                         <span className="badge badge-warning">
@@ -307,11 +401,20 @@ export const WaterBilling: React.FC = () => {
                       )}
                     </td>
                     <td>
-                      <button type="button" className="btn-organic btn-secondary"
-                        style={{ padding: '6px 12px', fontSize: 12 }}
-                        onClick={() => setRecordModal({ tenant, existing: r })}>
-                        {r ? 'Edit' : 'Record'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button type="button" className="btn-organic btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: 12 }}
+                          onClick={() => setRecordModal({ tenant, existing: r })}>
+                          {r ? 'Edit' : 'Record'}
+                        </button>
+                        {r && r.status === 'outstanding' && r.balance > 0 && (
+                          <button type="button" className="btn-organic btn-primary"
+                            style={{ padding: '6px 12px', fontSize: 12 }}
+                            onClick={() => setPayWaterModal({ ...r, tenant })}>
+                            Pay
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -355,6 +458,22 @@ export const WaterBilling: React.FC = () => {
             year={year} month={month}
             existing={recordModal.existing}
             onClose={() => setRecordModal(null)}
+          />
+        </Modal>
+      )}
+
+      {/* Pay Water Bill Modal */}
+      {payWaterModal && (
+        <Modal
+          isOpen
+          onClose={() => setPayWaterModal(null)}
+          title="Record Water Payment"
+          description={`${payWaterModal.tenant.first_name} ${payWaterModal.tenant.last_name} — Unit ${payWaterModal.unit} · ${payWaterModal.period}`}
+          size="sm"
+        >
+          <WaterPayForm
+            reading={payWaterModal}
+            onClose={() => setPayWaterModal(null)}
           />
         </Modal>
       )}

@@ -1,25 +1,22 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Menu, Search, Bell, ChevronDown, Settings, LogOut, User, X } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useBillingStore } from '@/stores/billingStore';
+import { useMaintenanceStore } from '@/stores/maintenanceStore';
 import { useNavigate } from 'react-router-dom';
 
 interface TopbarProps {
   onMenuClick: () => void;
 }
 
-const NOTIFICATIONS = [
-  { id: 1, title: 'Overdue Rent', body: 'James Mwangi – Unit A-104 is 14 days overdue', time: '2m ago', color: '#ef4444', unread: true },
-  { id: 2, title: 'Maintenance Request', body: 'Leaking sink reported at Unit B-204', time: '1h ago', color: '#f59e0b', unread: true },
-  { id: 3, title: 'New Tenant', body: 'Grace Wanjiku added to Unit A-101', time: '3h ago', color: '#10b981', unread: false },
-  { id: 4, title: 'Meter Reading Due', body: 'June readings pending for Sunset Apts', time: 'Yesterday', color: '#4f46e5', unread: false },
-];
-
 export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const { profile, signOut } = useAuthStore();
+  const { tenants, getTenantOutstanding } = useBillingStore();
+  const { tickets } = useMaintenanceStore();
   const navigate = useNavigate();
   const [showNotif, setShowNotif] = useState(false);
   const [showUser, setShowUser] = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +27,50 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     .substring(0, 2)
     .toUpperCase();
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  // Build live notifications from store data
+  const notifications = useMemo(() => {
+    const notifs: { id: string; title: string; body: string; time: string; color: string }[] = [];
+
+    // Overdue tenants
+    tenants.forEach(t => {
+      const outstanding = getTenantOutstanding(t.id);
+      if (outstanding > 0) {
+        notifs.push({
+          id: `overdue-${t.id}`,
+          title: 'Overdue Rent',
+          body: `${t.first_name} ${t.last_name} – Unit ${t.unit} owes KSh ${outstanding.toLocaleString()}`,
+          time: 'Now',
+          color: '#ef4444',
+        });
+      }
+    });
+
+    // Pending maintenance tickets
+    tickets.filter(t => t.status !== 'resolved').forEach(t => {
+      notifs.push({
+        id: `ticket-${t.id}`,
+        title: 'Maintenance Request',
+        body: `${t.title} – ${t.unit}`,
+        time: t.date || 'Recent',
+        color: t.priority === 'High' ? '#ef4444' : '#f59e0b',
+      });
+    });
+
+    // If no notifications, show a placeholder
+    if (notifs.length === 0) {
+      notifs.push({
+        id: 'empty',
+        title: 'All clear!',
+        body: 'No overdue rent or pending maintenance.',
+        time: 'Now',
+        color: '#10b981',
+      });
+    }
+
+    return notifs;
+  }, [tenants, tickets, getTenantOutstanding]);
+
+  const unreadCount = notifications.filter(n => !readIds.has(n.id) && n.id !== 'empty').length;
 
   // Close panels on outside click
   useEffect(() => {
@@ -42,7 +82,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  const markAllRead = () => setReadIds(new Set(notifications.map(n => n.id)));
 
   return (
     <header style={{ padding: '0 28px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, height: 60 }}>
@@ -121,7 +161,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
                 </button>
               </div>
               {notifications.map(n => (
-                <div key={n.id} className="notif-item" style={{ background: n.unread ? '#fafafa' : 'transparent' }}>
+                <div key={n.id} className="notif-item" style={{ background: !readIds.has(n.id) && n.id !== 'empty' ? '#fafafa' : 'transparent' }}>
                   <span className="notif-dot" style={{ background: n.color }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>{n.title}</div>
@@ -131,7 +171,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
                 </div>
               ))}
               <div style={{ padding: '10px 18px', textAlign: 'center' }}>
-                <button type="button" style={{ fontSize: 13, fontWeight: 600, color: 'var(--brand-primary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <button type="button" onClick={() => { navigate('/maintenance'); setShowNotif(false); }} style={{ fontSize: 13, fontWeight: 600, color: 'var(--brand-primary)', background: 'none', border: 'none', cursor: 'pointer' }}>
                   View all notifications
                 </button>
               </div>
@@ -180,7 +220,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
             <div className="user-menu">
               <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(0,0,0,0.05)', marginBottom: 4 }}>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{profile?.full_name || 'Admin User'}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>Administrator</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{profile?.role === 'caretaker' ? 'Caretaker' : 'Landlord'}</div>
               </div>
               {[
                 { icon: User, label: 'Profile', action: () => { navigate('/settings'); setShowUser(false); } },

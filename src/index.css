@@ -234,14 +234,16 @@ body {
 .modal-btn-submit:hover { background: var(--brand-primary-hover); transform: translateY(-1px); }
 .modal-btn-submit:active { transform: translateY(0); }
 .modal-error {
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.2);
-  color: #fca5a5;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
 }
+/* Missing font-family on modal buttons */
+.modal-btn-cancel, .modal-btn-submit { font-family: inherit; }
 
 /* ── Table ───────────────────────────────────────────────────────────────── */
 .table-organic {

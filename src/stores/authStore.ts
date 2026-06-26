@@ -37,16 +37,17 @@ interface AuthState {
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error?: string }>;
+  uploadAvatar: (file: File) => Promise<{ error?: string, url?: string }>;
   fetchProfile: () => Promise<void>;
   clearError: () => void;
   setLastActivity: (activity: string) => void;
+  enableDemoMode: () => void;
 }
 
 /** Demo profile for development without Supabase */
 const DEMO_PROFILE: Profile = {
   id: 'demo-user-id',
-  auth_id: 'demo-auth-id',
-  email: 'bruce@rentflow.co.ke',
+  email: 'demo@rentflow.com',
   full_name: 'Bruce Mwikya',
   phone: '+254 712 345 678',
   role: 'landlord',
@@ -64,11 +65,19 @@ export const useAuthStore = create<AuthState>()(
       initialized: false,
       loading: false,
       error: null,
-      isDemoMode: !isSupabaseConfigured(),
+      isDemoMode: false,
       sessionStartTime: null,
       lastActivity: 'Logged in',
 
       setLastActivity: (activity: string) => set({ lastActivity: activity }),
+      
+      enableDemoMode: () => set({ 
+        isDemoMode: true,
+        profile: DEMO_PROFILE,
+        error: null,
+        sessionStartTime: Date.now(),
+        lastActivity: 'Logged in'
+      }),
 
       initialize: async () => {
         const { isDemoMode, sessionStartTime } = get();
@@ -77,7 +86,6 @@ export const useAuthStore = create<AuthState>()(
         if (!sessionStartTime) set({ sessionStartTime: Date.now() });
 
         if (isDemoMode) {
-          // In demo mode, check if user has previously "signed in"
           const demoAuth = localStorage.getItem('rentflow-auth');
           if (demoAuth === 'true') {
             set({
@@ -85,10 +93,10 @@ export const useAuthStore = create<AuthState>()(
               initialized: true,
               loading: false,
             });
+            return;
           } else {
-            set({ initialized: true, loading: false });
+            set({ isDemoMode: false });
           }
-          return;
         }
 
         set({ loading: true });
@@ -107,7 +115,9 @@ export const useAuthStore = create<AuthState>()(
             set({ user: session?.user ?? null, session });
 
             if (event === 'SIGNED_IN' && session?.user) {
-              set({ sessionStartTime: Date.now(), lastActivity: 'Logged in' });
+              if (!get().sessionStartTime) {
+                set({ sessionStartTime: Date.now(), lastActivity: 'Logged in' });
+              }
               await get().fetchProfile();
             } else if (event === 'SIGNED_OUT') {
               set({ user: null, session: null, profile: null, sessionStartTime: null, lastActivity: '' });
@@ -215,13 +225,13 @@ export const useAuthStore = create<AuthState>()(
 
         if (isDemoMode) {
           localStorage.removeItem('rentflow-auth');
-          set({ profile: null, user: null, session: null, error: null, sessionStartTime: null, lastActivity: '' });
+          set({ profile: null, user: null, session: null, error: null, sessionStartTime: null, lastActivity: '', isDemoMode: false });
           return;
         }
 
         try {
           await supabase.auth.signOut();
-          set({ user: null, session: null, profile: null, error: null, sessionStartTime: null, lastActivity: '' });
+          set({ user: null, session: null, profile: null, error: null, sessionStartTime: null, lastActivity: '', isDemoMode: false });
         } catch (err) {
           console.error('Sign out error:', err);
         }
@@ -237,7 +247,7 @@ export const useAuthStore = create<AuthState>()(
           const { data, error } = await supabase
             .from('profiles')
             .select('*')
-            .eq('auth_id', user.id)
+            .eq('id', user.id)
             .single();
 
           if (error) throw error;
@@ -270,6 +280,35 @@ export const useAuthStore = create<AuthState>()(
           return {};
         } catch (err) {
           const message = (err as Error).message;
+          return { error: message };
+        }
+      },
+
+      uploadAvatar: async (file: File) => {
+        const { user } = get();
+        if (!user) return { error: 'Not authenticated' };
+
+        try {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+          const filePath = `${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, file, { upsert: true });
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+
+          await get().updateProfile({ avatar_url: publicUrl });
+
+          return { url: publicUrl };
+        } catch (err) {
+          const message = (err as Error).message;
+          console.error('Avatar upload failed:', message);
           return { error: message };
         }
       },

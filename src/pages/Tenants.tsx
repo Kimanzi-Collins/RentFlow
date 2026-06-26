@@ -4,19 +4,24 @@ import gsap from 'gsap';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Mail, Phone, MoreVertical,
-  Eye, Edit3, Trash2, Download, MessageSquare, ArrowUpRight,
+  Eye, Edit3, Trash2, Download, MessageSquare, ArrowUpRight, Users,
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { downloadPDF } from '@/lib/export';
+import { downloadPDF, downloadTenantStatement } from '@/lib/export';
 import { useBillingStore } from '@/stores/billingStore';
 import { usePropertyStore } from '@/stores/propertyStore';
 import { useUnitStore } from '@/stores/unitStore';
+import { ErrorBoundary } from '@/ErrorBoundary';
 import type { TenantConfig } from '@/stores/billingStore';
 
 // Avatar colour palette
 const AVATAR_COLORS = ['#4f46e5', '#0891b2', '#d97706', '#10b981', '#ef4444', '#8b5cf6'];
-const getColor = (id: number) => AVATAR_COLORS[id % AVATAR_COLORS.length];
+const getColor = (id: string) => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
 
 const FORM_INIT: Omit<TenantConfig, 'id'> = {
   first_name: '', last_name: '', email: '', phone: '', id_number: '',
@@ -29,14 +34,15 @@ export const Tenants: React.FC = () => {
   const { properties } = usePropertyStore();
   const { units } = useUnitStore();
   const navigate = useNavigate();
-  const { success } = useToast();
+  const { success, error: errorToast } = useToast();
 
-  const [searchTerm, setSearch] = useState('');
-  const [showAdd, setShowAdd]   = useState(false);
-  const [editId, setEditId]     = useState<number | null>(null);
-  const [openMenu, setMenu]     = useState<number | null>(null);
-  const [form, setForm]         = useState<Omit<TenantConfig, 'id'>>(FORM_INIT);
-  const [formErr, setFormErr]   = useState('');
+  const [searchTerm, setSearch]       = useState('');
+  const [showAdd, setShowAdd]         = useState(false);
+  const [editId, setEditId]           = useState<string | null>(null);
+  const [openMenu, setMenu]           = useState<string | null>(null);
+  const [form, setForm]               = useState<Omit<TenantConfig, 'id'>>(FORM_INIT);
+  const [formErr, setFormErr]         = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<TenantConfig | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +65,7 @@ export const Tenants: React.FC = () => {
 
   const filtered = tenants.filter(t =>
     [t.first_name, t.last_name, t.email, t.unit, t.phone].some(v =>
-      v.toLowerCase().includes(searchTerm.toLowerCase())
+      v ? v.toLowerCase().includes(searchTerm.toLowerCase()) : false
     )
   );
 
@@ -95,7 +101,7 @@ export const Tenants: React.FC = () => {
     setForm(f => ({ ...f, property: propName, unit: '' }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.first_name.trim() || !form.last_name.trim()) { setFormErr('Full name is required.'); return; }
     if (!form.email.trim()) { setFormErr('Email is required.'); return; }
@@ -103,21 +109,21 @@ export const Tenants: React.FC = () => {
     setFormErr('');
 
     if (editId !== null) {
-      updateTenant(editId, form);
+      const res: any = await updateTenant(editId, form);
+      if (res && res.error) { setFormErr(res.error); return; }
       success('Tenant updated', `${form.first_name} ${form.last_name} updated.`);
     } else {
-      const newId = Math.max(0, ...tenants.map(t => t.id)) + 1;
-      addTenant({ ...form, id: newId });
+      const res: any = await addTenant(form);
+      if (res && res.error) { setFormErr(res.error); return; }
       success('Tenant added', `${form.first_name} ${form.last_name} has been added.`);
     }
     setShowAdd(false);
     setEditId(null);
   }
 
-  function handleDelete(id: number) {
+  function handleDelete(id: string) {
     const t = tenants.find(x => x.id === id);
-    removeTenant(id);
-    success('Tenant removed', `${t?.first_name} ${t?.last_name} removed.`);
+    if (t) setDeleteConfirm(t);
     setMenu(null);
   }
 
@@ -134,6 +140,7 @@ export const Tenants: React.FC = () => {
   const inactiveTenants = tenants.filter(t => t.status === 'inactive').length;
 
   return (
+    <ErrorBoundary>
     <div ref={containerRef} className="page-root">
 
       {/* Header */}
@@ -196,7 +203,7 @@ export const Tenants: React.FC = () => {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                         <div style={{ width: 36, height: 36, borderRadius: '50%', background: getColor(tenant.id), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                          {tenant.first_name[0]}{tenant.last_name[0]}
+                          {(tenant.first_name?.[0] || '') + (tenant.last_name?.[0] || '')}
                         </div>
                         <div>
                           <button type="button" onClick={() => navigate(`/tenants/${tenant.id}`)}
@@ -228,7 +235,7 @@ export const Tenants: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
                         <button type="button" className="btn-icon" style={{ width: 30, height: 30, border: 'none' }}
                           onClick={() => setMenu(openMenu === tenant.id ? null : tenant.id)}>
                           <MoreVertical size={14} />
@@ -267,8 +274,8 @@ export const Tenants: React.FC = () => {
                     <Users size={24} color="#9ca3af" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>No tenants yet</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Add your first tenant to start tracking rent.</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>Live Database is Empty</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>The database connected successfully, but no tenants exist in your live workspace yet.</div>
                   </div>
                   <button type="button" onClick={openAdd} className="btn-organic btn-primary" style={{ marginTop: 8 }}>+ Add Tenant</button>
                 </div>
@@ -344,6 +351,61 @@ export const Tenants: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* ── Delete Confirmation Modal ── */}
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}
+        title="Delete Tenant?" size="sm">
+        {deleteConfirm && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Tenant identity */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#dc2626', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, flexShrink: 0 }}>
+                {deleteConfirm.first_name[0]}{deleteConfirm.last_name[0]}
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{deleteConfirm.first_name} {deleteConfirm.last_name}</div>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>Unit {deleteConfirm.unit} · {deleteConfirm.property}</div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.65, margin: 0 }}>
+              This will permanently delete all their rent records, payment transactions, lease data, and water billing history.{' '}
+              <strong>This cannot be undone.</strong>
+            </p>
+
+            {/* Download reminder */}
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
+                ⚠ Recommended: download their statement first
+              </div>
+              <button type="button" className="btn-organic btn-secondary" style={{ fontSize: 12, padding: '7px 14px' }}
+                onClick={() => {
+                  const { getTenantRentHistory, getTenantWaterHistory } = useBillingStore.getState();
+                  downloadTenantStatement(deleteConfirm, getTenantRentHistory(deleteConfirm.id), getTenantWaterHistory(deleteConfirm.id));
+                }}>
+                <Download size={13} /> Download Statement
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
+              <button type="button" className="modal-btn-cancel" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+              <button
+                type="button"
+                className="modal-btn-submit"
+                style={{ background: '#dc2626' }}
+                onClick={async () => {
+                  const res: any = await removeTenant(deleteConfirm.id);
+                  if (res && res.error) errorToast('Failed to delete', res.error);
+                  else success('Tenant removed', `${deleteConfirm.first_name} ${deleteConfirm.last_name} has been removed.`);
+                  setDeleteConfirm(null);
+                }}>
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
+    </ErrorBoundary>
   );
 };
