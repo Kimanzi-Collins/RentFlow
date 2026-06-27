@@ -34,6 +34,7 @@ export const Properties: React.FC = () => {
   const [openMenu, setOpenMenu]   = useState<string | null>(null);
   const [form, setForm]           = useState<Omit<Property, 'id' | 'landlord_id'>>(FORM_INIT);
   const [formErr, setFormErr]     = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -82,23 +83,28 @@ export const Properties: React.FC = () => {
     if (!form.name.trim())    { setFormErr('Property name is required.'); return; }
     if (!form.address.trim()) { setFormErr('Address is required.'); return; }
     setFormErr('');
+    setIsSubmitting(true);
     
-    if (editProp) {
-      const res = await updateProperty(editProp.id, form);
-      if (res.error) {
-        setFormErr(res.error);
-        return;
+    try {
+      if (editProp) {
+        const res = await updateProperty(editProp.id, form);
+        if (res.error) {
+          setFormErr(res.error);
+          return;
+        }
+        success('Property updated', `${form.name} has been updated.`);
+      } else {
+        const res = await addProperty(form);
+        if (res.error) {
+          setFormErr(res.error);
+          return;
+        }
+        success('Property added', `${form.name} added to your portfolio.`);
       }
-      success('Property updated', `${form.name} has been updated.`);
-    } else {
-      const res = await addProperty(form);
-      if (res.error) {
-        setFormErr(res.error);
-        return;
-      }
-      success('Property added', `${form.name} added to your portfolio.`);
+      setShowAdd(false); setEditProp(null);
+    } finally {
+      setIsSubmitting(false);
     }
-    setShowAdd(false); setEditProp(null);
   }
   async function handleDelete(id: string) {
     const p = properties.find(x => x.id === id);
@@ -283,8 +289,10 @@ export const Properties: React.FC = () => {
           </div>
           <div><label className="modal-label">Description (optional)</label><textarea className="modal-input" rows={2} value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ resize: 'vertical' }} /></div>
           <div className="modal-form-actions">
-            <button type="button" className="modal-btn-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="modal-btn-submit">{editProp ? 'Save Changes' : 'Add Property'}</button>
+            <button type="button" className="modal-btn-cancel" onClick={() => setShowAdd(false)} disabled={isSubmitting}>Cancel</button>
+            <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : (editProp ? 'Save Changes' : 'Add Property')}
+            </button>
           </div>
         </form>
       </Modal>

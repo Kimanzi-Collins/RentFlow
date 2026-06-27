@@ -77,6 +77,7 @@ function RecordReadingForm({ onSubmit, onCancel }: ReadingFormProps) {
     date: todayISO(),
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const consumed   = Math.max(0, Number(form.curr) - Number(form.prev));
   const totalBill  = consumed * Number(form.rate);
@@ -100,22 +101,27 @@ function RecordReadingForm({ onSubmit, onCancel }: ReadingFormProps) {
     if (Number(form.curr) < Number(form.prev)) { setError('Current reading cannot be less than previous reading.'); return; }
     if (!form.rate || Number(form.rate) <= 0) { setError('Rate per unit is required.'); return; }
     setError('');
-    const units  = Number(form.curr) - Number(form.prev);
-    const amount = units * Number(form.rate);
-    const opt    = UNIT_OPTIONS.find(u => u.value === form.unit) ?? UNIT_OPTIONS[0];
-    onSubmit({
-      id:       String(Date.now()),
-      period:   periodFromDate(form.date),
-      unit:     form.unit,
-      property: opt.label.split('–')[1]?.trim() ?? '',
-      type:     form.type,
-      prev:     Number(form.prev),
-      curr:     Number(form.curr),
-      units,
-      amount,
-      rate:     Number(form.rate),
-      tenant:   '—',
-    });
+    setIsSubmitting(true);
+    
+    setTimeout(() => {
+      const units  = Number(form.curr) - Number(form.prev);
+      const amount = units * Number(form.rate);
+      const opt    = UNIT_OPTIONS.find(u => u.value === form.unit) ?? UNIT_OPTIONS[0];
+      onSubmit({
+        id:       String(Date.now()),
+        period:   periodFromDate(form.date),
+        unit:     form.unit,
+        property: opt.label.split('–')[1]?.trim() ?? '',
+        type:     form.type,
+        prev:     Number(form.prev),
+        curr:     Number(form.curr),
+        units,
+        amount,
+        rate:     Number(form.rate),
+        tenant:   '—',
+      });
+      setIsSubmitting(false);
+    }, 400);
   }
 
   return (
@@ -143,14 +149,14 @@ function RecordReadingForm({ onSubmit, onCancel }: ReadingFormProps) {
         <div>
           <label htmlFor="mr-prev" className="label-light">Previous Reading</label>
           <input id="mr-prev" aria-label="Previous meter reading" className="input-light"
-            type="number" min="0" value={form.prev}
+            type="number" step="0.1" min="0" value={form.prev}
             onChange={e => setForm(f => ({ ...f, prev: e.target.value }))} />
         </div>
 
         <div>
           <label htmlFor="mr-curr" className="label-light">Current Reading *</label>
           <input id="mr-curr" aria-label="Current meter reading" className="input-light"
-            type="number" min="0" placeholder="Enter current reading" value={form.curr}
+            type="number" step="0.1" min="0" placeholder="Enter current reading" value={form.curr}
             onChange={e => setForm(f => ({ ...f, curr: e.target.value }))} />
         </div>
 
@@ -188,8 +194,10 @@ function RecordReadingForm({ onSubmit, onCancel }: ReadingFormProps) {
       )}
 
       <div className="prop-form-actions">
-        <button type="button" className="prop-form-cancel" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="prop-form-submit">Save Reading</button>
+        <button type="button" className="prop-form-cancel" onClick={onCancel} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="prop-form-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving...' : 'Save Reading'}
+        </button>
       </div>
     </form>
   );

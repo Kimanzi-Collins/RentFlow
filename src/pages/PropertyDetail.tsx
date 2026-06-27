@@ -71,12 +71,18 @@ const EditModal: React.FC<{
   const { updateProperty } = usePropertyStore();
   const { success } = useToast();
   const [form, setForm] = useState(initial);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    updateProperty(propId, form);
-    success('Property updated');
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await updateProperty(propId, form);
+      success('Property updated');
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -89,8 +95,10 @@ const EditModal: React.FC<{
       </div>
       <div><label className="modal-label">Description</label><textarea className="modal-input" rows={2} value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ resize: 'vertical' }} /></div>
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">Save Changes</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving...' : 'Save Changes'}
+        </button>
       </div>
     </form>
   );

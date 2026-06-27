@@ -45,6 +45,7 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
   const [method, setMethod]   = useState('M-PESA');
   const [note, setNote]       = useState('');
   const [err, setErr]         = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Compute balances fresh every render so switching period/type always shows correct amounts
   const periodRecord   = rentRecords.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod) ?? record;
@@ -73,24 +74,30 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
     const n = Number(amount);
     if (!n || n <= 0) { setErr('Enter a valid amount.'); return; }
 
-    if (payType === 'rent') {
-      const { year, month } = parsePeriodKey(selectedPeriod);
-      await ensureRentRecord(tenant.id, year, month);
-      if (n > rentBalance) { setErr(`Amount exceeds rent balance of KSh ${rentBalance.toLocaleString()}.`); return; }
-      setErr('');
-      const res: any = await recordPayment(tenant.id, selectedPeriod, n, method, note || undefined);
-      if (res && res.error) { setErr(res.error); return; }
-      success('Rent payment recorded', `KSh ${n.toLocaleString()} — ${tenant.first_name} ${tenant.last_name}`);
-    } else {
-      if (!waterReading) { setErr('No water reading found for this period. Select the correct month.'); return; }
-      if (waterReading.status === 'paid') { setErr('Water bill for this period is already fully paid.'); return; }
-      if (n > periodWaterBal) { setErr(`Amount exceeds water balance of KSh ${periodWaterBal.toLocaleString()}.`); return; }
-      setErr('');
-      const res = await recordWaterPayment(waterReading.id, n);
-      if (res?.error) { setErr(res.error); return; }
-      success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${tenant.unit}`);
+    
+    setIsSubmitting(true);
+    try {
+      if (payType === 'rent') {
+        const { year, month } = parsePeriodKey(selectedPeriod);
+        await ensureRentRecord(tenant.id, year, month);
+        if (n > rentBalance) { setErr(`Amount exceeds rent balance of KSh ${rentBalance.toLocaleString()}.`); return; }
+        setErr('');
+        const res: any = await recordPayment(tenant.id, selectedPeriod, n, method, note || undefined);
+        if (res && res.error) { setErr(res.error); return; }
+        success('Rent payment recorded', `KSh ${n.toLocaleString()} — ${tenant.first_name} ${tenant.last_name}`);
+      } else {
+        if (!waterReading) { setErr('No water reading found for this period. Select the correct month.'); return; }
+        if (waterReading.status === 'paid') { setErr('Water bill for this period is already fully paid.'); return; }
+        if (n > periodWaterBal) { setErr(`Amount exceeds water balance of KSh ${periodWaterBal.toLocaleString()}.`); return; }
+        setErr('');
+        const res = await recordWaterPayment(waterReading.id, n);
+        if (res?.error) { setErr(res.error); return; }
+        success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${tenant.unit}`);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   }
 
   return (
@@ -170,8 +177,10 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
       )}
 
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">Record Payment</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Recording...' : 'Record Payment'}
+        </button>
       </div>
     </form>
   );

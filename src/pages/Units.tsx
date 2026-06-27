@@ -38,6 +38,7 @@ export const Units: React.FC = () => {
   const [openMenu, setMenu]       = useState<string | null>(null);
   const [form, setForm]           = useState<Omit<Unit, 'id' | 'property' | 'type' | 'tenant'>>(FORM_INIT);
   const [formErr, setFormErr]     = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const filterRef    = useRef<HTMLDivElement>(null);
 
@@ -96,17 +97,22 @@ export const Units: React.FC = () => {
     if (!form.rent_amount || form.rent_amount <= 0) { setFormErr('Valid rent amount is required.'); return; }
     setFormErr('');
 
-    if (editUnit) {
-      const res = await updateUnit(editUnit.id, form);
-      if (res.error) { setFormErr(res.error); return; }
-      success('Unit updated', `Unit ${form.unit_number} updated.`);
-    } else {
-      const res = await addUnit(form);
-      if (res.error) { setFormErr(res.error); return; }
-      success('Unit added', `Unit ${form.unit_number} added.`);
+    setIsSubmitting(true);
+    try {
+      if (editUnit) {
+        const res = await updateUnit(editUnit.id, form);
+        if (res.error) { setFormErr(res.error); return; }
+        success('Unit updated', `Unit ${form.unit_number} updated.`);
+      } else {
+        const res = await addUnit(form);
+        if (res.error) { setFormErr(res.error); return; }
+        success('Unit added', `Unit ${form.unit_number} added.`);
+      }
+      setShowAdd(false);
+      setEdit(null);
+    } finally {
+      setIsSubmitting(false);
     }
-    setShowAdd(false);
-    setEdit(null);
   }
 
   async function handleDelete(id: string) {
@@ -305,8 +311,10 @@ export const Units: React.FC = () => {
             </div>
           </div>
           <div className="modal-form-actions">
-            <button type="button" className="modal-btn-cancel" onClick={() => { setShowAdd(false); setEdit(null); }}>Cancel</button>
-            <button type="submit" className="modal-btn-submit">{editUnit ? 'Save Changes' : 'Add Unit'}</button>
+            <button type="button" className="modal-btn-cancel" onClick={() => { setShowAdd(false); setEdit(null); }} disabled={isSubmitting}>Cancel</button>
+            <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : (editUnit ? 'Save Changes' : 'Add Unit')}
+            </button>
           </div>
         </form>
       </Modal>

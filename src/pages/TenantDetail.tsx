@@ -34,6 +34,7 @@ const PayModal: React.FC<{
   const [method, setMethod] = useState('M-PESA');
   const [note, setNote]     = useState('');
   const [err, setErr]       = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,14 +43,19 @@ const PayModal: React.FC<{
     if (n > record.balance) { setErr(`Exceeds outstanding balance of KSh ${record.balance.toLocaleString()}.`); return; }
     setErr('');
     
-    const res: any = await recordPayment(tenantId, record.period_key, n, method, note || undefined);
-    if (res && res.error) {
-      setErr(res.error);
-      return;
+    setIsSubmitting(true);
+    try {
+      const res: any = await recordPayment(tenantId, record.period_key, n, method, note || undefined);
+      if (res && res.error) {
+        setErr(res.error);
+        return;
+      }
+      
+      success('Payment recorded', `KSh ${n.toLocaleString()} applied to ${record.period}`);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    success('Payment recorded', `KSh ${n.toLocaleString()} applied to ${record.period}`);
-    onClose();
   }
 
   return (
@@ -78,8 +84,10 @@ const PayModal: React.FC<{
         <input className="modal-input" placeholder="e.g. Partial, balance on 25th" value={note} onChange={e => setNote(e.target.value)} />
       </div>
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">Record Payment</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Recording...' : 'Record Payment'}
+        </button>
       </div>
     </form>
   );
@@ -94,15 +102,21 @@ const EditRentModal: React.FC<{
   const { success } = useToast();
   const [rent, setRent] = useState(String(currentRent));
   const [err, setErr]   = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const n = Number(rent);
     if (!n || n <= 0) { setErr('Enter a valid rent amount.'); return; }
     setErr('');
-    updateTenant(tenantId, { rent_amount: n });
-    success('Rent updated', `New monthly rent: KSh ${n.toLocaleString()}`);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await updateTenant(tenantId, { rent_amount: n });
+      success('Rent updated', `New monthly rent: KSh ${n.toLocaleString()}`);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -116,8 +130,10 @@ const EditRentModal: React.FC<{
         This will apply to future billing periods. Existing rent records are not affected.
       </p>
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">Update Rent</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Updating...' : 'Update Rent'}
+        </button>
       </div>
     </form>
   );
@@ -132,15 +148,21 @@ const EditWaterRateModal: React.FC<{
   const { success } = useToast();
   const [rate, setRate] = useState(String(currentRate));
   const [err, setErr]   = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const n = Number(rate);
     if (!n || n <= 0) { setErr('Enter a valid rate.'); return; }
     setErr('');
-    updateTenant(tenantId, { water_rate: n });
-    success('Water rate updated', `New rate: KSh ${n}/m³`);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await updateTenant(tenantId, { water_rate: n });
+      success('Water rate updated', `New rate: KSh ${n}/m³`);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -148,14 +170,16 @@ const EditWaterRateModal: React.FC<{
       {err && <div className="modal-error">{err}</div>}
       <div>
         <label className="modal-label">Rate per m³ (KES)</label>
-        <input className="modal-input" type="number" min="1" value={rate} onChange={e => setRate(e.target.value)} autoFocus />
+        <input className="modal-input" type="number" step="0.1" min="1" value={rate} onChange={e => setRate(e.target.value)} autoFocus />
       </div>
       <p style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
         This sets the default rate for future water readings. You can still override per reading in Water Billing.
       </p>
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">Update Rate</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Updating...' : 'Update Rate'}
+        </button>
       </div>
     </form>
   );

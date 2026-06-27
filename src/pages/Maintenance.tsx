@@ -54,6 +54,7 @@ export const Maintenance: React.FC = () => {
   const [openMenu, setMenu]       = useState<string | null>(null);
   const [form, setForm]           = useState(FORM_INIT);
   const [formErr, setFormErr]     = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const filterRef    = useRef<HTMLDivElement>(null);
   const { success, error: errorToast } = useToast();
@@ -96,21 +97,26 @@ export const Maintenance: React.FC = () => {
     if (!form.title.trim()) { setFormErr('Issue description is required.'); return; }
     if (!form.unit.trim())  { setFormErr('Unit is required.'); return; }
     setFormErr('');
+    setIsSubmitting(true);
     
-    const next: any = {
-      ...form,
-      status: 'pending',
-    };
-    
-    const res = await addTicket(next);
-    if (res.error) {
-      setFormErr(res.error);
-      return;
+    try {
+      const next: any = {
+        ...form,
+        status: 'pending',
+      };
+      
+      const res = await addTicket(next);
+      if (res.error) {
+        setFormErr(res.error);
+        return;
+      }
+      
+      success('Ticket created', `${form.title}`);
+      setForm(FORM_INIT);
+      setShowAdd(false);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    success('Ticket created', `${form.title}`);
-    setForm(FORM_INIT);
-    setShowAdd(false);
   }
 
   async function handleResolve(id: string) {
@@ -348,8 +354,10 @@ export const Maintenance: React.FC = () => {
             <textarea className="modal-input" rows={3} placeholder="Describe the issue in detail..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ resize: 'vertical' }} />
           </div>
           <div className="modal-form-actions">
-            <button type="button" className="modal-btn-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="modal-btn-submit">Create Ticket</button>
+            <button type="button" className="modal-btn-cancel" onClick={() => setShowAdd(false)} disabled={isSubmitting}>Cancel</button>
+            <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Create Ticket'}
+            </button>
           </div>
         </form>
       </Modal>

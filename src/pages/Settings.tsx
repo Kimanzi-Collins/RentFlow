@@ -20,6 +20,9 @@ export const Settings: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmittingProfile, setIsSubmittingProfile] = useState(false);
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+  const [isSubmittingPrefs, setIsSubmittingPrefs] = useState(false);
 
   const fullName = profile?.full_name || 'Admin User';
   const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -68,12 +71,17 @@ export const Settings: React.FC = () => {
     e.preventDefault();
     if (!name.trim()) { toastErr('Validation error', 'Name cannot be empty.'); return; }
     
-    const { error } = await updateProfile({ full_name: name, phone, company_name: company });
-    
-    if (error) {
-      toastErr('Update failed', error);
-    } else {
-      success('Profile updated', 'Your profile information has been saved.');
+    setIsSubmittingProfile(true);
+    try {
+      const { error } = await updateProfile({ full_name: name, phone, company_name: company });
+      
+      if (error) {
+        toastErr('Update failed', error);
+      } else {
+        success('Profile updated', 'Your profile information has been saved.');
+      }
+    } finally {
+      setIsSubmittingProfile(false);
     }
   }
 
@@ -92,18 +100,31 @@ export const Settings: React.FC = () => {
     }
   }
 
-  function handleSavePassword(e: React.FormEvent) {
+  async function handleSavePassword(e: React.FormEvent) {
     e.preventDefault();
     if (!currPwd) { toastErr('Missing field', 'Current password is required.'); return; }
     if (newPwd.length < 8) { toastErr('Weak password', 'Password must be at least 8 characters.'); return; }
     if (newPwd !== confPwd) { toastErr('Mismatch', 'New passwords do not match.'); return; }
-    success('Password changed', 'Your password has been updated successfully.');
-    setCurrPwd(''); setNewPwd(''); setConfPwd('');
+    
+    setIsSubmittingPassword(true);
+    try {
+      await new Promise(r => setTimeout(r, 400)); // simulate delay
+      success('Password changed', 'Your password has been updated successfully.');
+      setCurrPwd(''); setNewPwd(''); setConfPwd('');
+    } finally {
+      setIsSubmittingPassword(false);
+    }
   }
 
-  function handleSavePreferences(e: React.FormEvent) {
+  async function handleSavePreferences(e: React.FormEvent) {
     e.preventDefault();
-    success('Preferences saved', 'Your system preferences have been updated.');
+    setIsSubmittingPrefs(true);
+    try {
+      await new Promise(r => setTimeout(r, 400)); // simulate delay
+      success('Preferences saved', 'Your system preferences have been updated.');
+    } finally {
+      setIsSubmittingPrefs(false);
+    }
   }
 
   function toggleNotif(key: keyof typeof notifications) {
@@ -189,8 +210,8 @@ export const Settings: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-          <button type="submit" className="btn-organic btn-primary">
-            <Save size={15} /> Save Changes
+          <button type="submit" className="btn-organic btn-primary" disabled={isSubmittingProfile}>
+            <Save size={15} /> {isSubmittingProfile ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>
@@ -226,8 +247,8 @@ export const Settings: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-          <button type="submit" className="btn-organic btn-primary">
-            <Save size={15} /> Save Preferences
+          <button type="submit" className="btn-organic btn-primary" disabled={isSubmittingPrefs}>
+            <Save size={15} /> {isSubmittingPrefs ? 'Saving...' : 'Save Preferences'}
           </button>
         </div>
       </form>
@@ -328,8 +349,8 @@ export const Settings: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-          <button type="submit" className="btn-organic btn-primary">
-            <Shield size={15} /> Update Password
+          <button type="submit" className="btn-organic btn-primary" disabled={isSubmittingPassword}>
+            <Shield size={15} /> {isSubmittingPassword ? 'Updating...' : 'Update Password'}
           </button>
         </div>
       </form>

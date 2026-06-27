@@ -37,6 +37,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
   const [curr, setCurr]   = useState(existing ? String(existing.curr_reading) : '');
   const [rate, setRate]   = useState(String(existing?.rate ?? tenant.water_rate));
   const [err, setErr]     = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const consumed    = Math.max(0, Number(curr) - prevReading);
   const totalBill   = consumed * Number(rate);
@@ -48,15 +49,20 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
     if (Number(curr) < prevReading) { setErr(`Current reading (${curr}) cannot be less than previous (${prevReading}).`); return; }
     if (!rate || Number(rate) <= 0) { setErr('Rate per unit must be greater than 0.'); return; }
     setErr('');
+    setIsSubmitting(true);
     
-    const res: any = await recordWaterReading(tenant.id, tenant.unit, year, month, Number(curr), Number(rate));
-    if (res && res.error) {
-      setErr(res.error);
-      return;
+    try {
+      const res: any = await recordWaterReading(tenant.id, tenant.unit, year, month, Number(curr), Number(rate));
+      if (res && res.error) {
+        setErr(res.error);
+        return;
+      }
+      
+      success('Reading recorded', `${tenant.first_name} – Unit ${tenant.unit}: ${consumed} m³ × KSh ${rate} = KSh ${totalBill.toLocaleString()}`);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    success('Reading recorded', `${tenant.first_name} – Unit ${tenant.unit}: ${consumed} m³ × KSh ${rate} = KSh ${totalBill.toLocaleString()}`);
-    onClose();
   }
 
   return (
@@ -74,11 +80,11 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
       <div className="modal-form-grid">
         <div>
           <label className="modal-label">Previous Reading (m³)</label>
-          <input className="modal-input" type="number" value={prevReading} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+          <input className="modal-input" type="number" step="0.1" value={prevReading} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
         </div>
         <div>
           <label className="modal-label">Current Reading (m³) *</label>
-          <input className="modal-input" type="number" min={prevReading} placeholder="e.g. 1284" value={curr}
+          <input className="modal-input" type="number" step="0.1" min={prevReading} placeholder="e.g. 1284" value={curr}
             onChange={e => setCurr(e.target.value)} autoFocus />
         </div>
         <div>
@@ -106,8 +112,10 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
       )}
 
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">{existing ? 'Update Reading' : 'Record Reading'}</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Recording...' : (existing ? 'Update Reading' : 'Record Reading')}
+        </button>
       </div>
     </form>
   );
@@ -126,6 +134,7 @@ const WaterPayForm: React.FC<{
   const [amount, setAmount] = useState(String(reading.balance));
   const [method, setMethod] = useState('M-PESA');
   const [err, setErr]       = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -133,10 +142,15 @@ const WaterPayForm: React.FC<{
     if (!n || n <= 0) { setErr('Enter a valid amount.'); return; }
     if (n > reading.balance) { setErr(`Amount exceeds outstanding balance of KSh ${reading.balance.toLocaleString()}.`); return; }
     setErr('');
-    const res = await recordWaterPayment(reading.id, n);
-    if (res?.error) { setErr(res.error); return; }
-    success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${reading.unit}`);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      const res = await recordWaterPayment(reading.id, n);
+      if (res?.error) { setErr(res.error); return; }
+      success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${reading.unit}`);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -179,8 +193,10 @@ const WaterPayForm: React.FC<{
       </div>
 
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">Record Payment</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Recording...' : 'Record Payment'}
+        </button>
       </div>
     </form>
   );

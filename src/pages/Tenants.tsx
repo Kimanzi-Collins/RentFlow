@@ -42,6 +42,7 @@ export const Tenants: React.FC = () => {
   const [openMenu, setMenu]           = useState<string | null>(null);
   const [form, setForm]               = useState<Omit<TenantConfig, 'id'>>(FORM_INIT);
   const [formErr, setFormErr]         = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<TenantConfig | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,18 +108,23 @@ export const Tenants: React.FC = () => {
     if (!form.email.trim()) { setFormErr('Email is required.'); return; }
     if (!form.unit.trim())  { setFormErr('Unit is required.'); return; }
     setFormErr('');
+    setIsSubmitting(true);
 
-    if (editId !== null) {
-      const res: any = await updateTenant(editId, form);
-      if (res && res.error) { setFormErr(res.error); return; }
-      success('Tenant updated', `${form.first_name} ${form.last_name} updated.`);
-    } else {
-      const res: any = await addTenant(form);
-      if (res && res.error) { setFormErr(res.error); return; }
-      success('Tenant added', `${form.first_name} ${form.last_name} has been added.`);
+    try {
+      if (editId !== null) {
+        const res: any = await updateTenant(editId, form);
+        if (res && res.error) { setFormErr(res.error); return; }
+        success('Tenant updated', `${form.first_name} ${form.last_name} updated.`);
+      } else {
+        const res: any = await addTenant(form);
+        if (res && res.error) { setFormErr(res.error); return; }
+        success('Tenant added', `${form.first_name} ${form.last_name} has been added.`);
+      }
+      setShowAdd(false);
+      setEditId(null);
+    } finally {
+      setIsSubmitting(false);
     }
-    setShowAdd(false);
-    setEditId(null);
   }
 
   function handleDelete(id: string) {
@@ -340,14 +346,16 @@ export const Tenants: React.FC = () => {
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Initial Water Reading (m³)</label>
-              <input className="modal-input" type="number" min="0" placeholder="Meter reading at move-in"
+              <input className="modal-input" type="number" step="0.1" min="0" placeholder="Meter reading at move-in"
                 value={form.initial_water_reading || ''} onChange={e => setForm(f => ({ ...f, initial_water_reading: Number(e.target.value) }))} />
             </div>
           </div>
 
           <div className="modal-form-actions">
-            <button type="button" className="modal-btn-cancel" onClick={() => setShowAdd(false)}>Cancel</button>
-            <button type="submit" className="modal-btn-submit">{editId !== null ? 'Save Changes' : 'Add Tenant'}</button>
+            <button type="button" className="modal-btn-cancel" onClick={() => setShowAdd(false)} disabled={isSubmitting}>Cancel</button>
+            <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : (editId !== null ? 'Save Changes' : 'Add Tenant')}
+            </button>
           </div>
         </form>
       </Modal>
@@ -394,12 +402,18 @@ export const Tenants: React.FC = () => {
                 className="modal-btn-submit"
                 style={{ background: '#dc2626' }}
                 onClick={async () => {
-                  const res: any = await removeTenant(deleteConfirm.id);
-                  if (res && res.error) errorToast('Failed to delete', res.error);
-                  else success('Tenant removed', `${deleteConfirm.first_name} ${deleteConfirm.last_name} has been removed.`);
-                  setDeleteConfirm(null);
-                }}>
-                Delete Permanently
+                  setIsSubmitting(true);
+                  try {
+                    const res: any = await removeTenant(deleteConfirm.id);
+                    if (res && res.error) errorToast('Failed to delete', res.error);
+                    else success('Tenant removed', `${deleteConfirm.first_name} ${deleteConfirm.last_name} has been removed.`);
+                    setDeleteConfirm(null);
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                disabled={isSubmitting}>
+                {isSubmitting ? 'Deleting...' : 'Delete Permanently'}
               </button>
             </div>
           </div>
