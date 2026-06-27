@@ -11,7 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { downloadPDF } from '@/lib/export';
+import { downloadPDF, downloadReceipt } from '@/lib/export';
 import {
   useBillingStore,
   getAvailablePeriods,
@@ -94,6 +94,23 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
         if (res?.error) { setErr(res.error); return; }
         success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${tenant.unit}`);
       }
+
+      // Check if both rent and water are fully paid for this period after payment
+      const { rentRecords, waterReadings } = useBillingStore.getState();
+      const updatedRent = rentRecords.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod);
+      const updatedWater = waterReadings.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod);
+      
+      const isRentPaid = updatedRent?.status === 'paid';
+      const isWaterPaid = !updatedWater || updatedWater.status === 'paid';
+      
+      if (isRentPaid && isWaterPaid && updatedRent) {
+        const periodName = updatedRent.period;
+        const rentTotal = updatedRent.amount_paid;
+        const waterTotal = updatedWater ? updatedWater.amount_paid : 0;
+        downloadReceipt(tenant, periodName, rentTotal, waterTotal, method, updatedWater);
+        success('Receipt generated', 'Rent and water fully paid for this period.');
+      }
+
       onClose();
     } finally {
       setIsSubmitting(false);

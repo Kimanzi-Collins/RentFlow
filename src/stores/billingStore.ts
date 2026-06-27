@@ -150,6 +150,12 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
 
     set({ loading: true, error: null });
     try {
+      // 0. Auto-generate missing rent bills for the current period
+      const now = new Date();
+      const pKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const pName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+      await supabase.rpc('generate_monthly_bills', { target_period_key: pKey, target_period_name: pName });
+
       // 1. Fetch Tenants & Leases
       const { data: tenantsData, error: tErr } = await supabase
         .from('tenants')

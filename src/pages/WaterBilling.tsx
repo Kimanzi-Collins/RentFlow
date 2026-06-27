@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { downloadPDF } from '@/lib/export';
+import { downloadPDF, downloadReceipt } from '@/lib/export';
 import {
   useBillingStore,
   getAvailablePeriods,
@@ -147,6 +147,22 @@ const WaterPayForm: React.FC<{
       const res = await recordWaterPayment(reading.id, n);
       if (res?.error) { setErr(res.error); return; }
       success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${reading.unit}`);
+
+      const { rentRecords, waterReadings } = useBillingStore.getState();
+      const updatedRent = rentRecords.find(r => r.tenant_id === reading.tenant_id && r.period_key === reading.period_key);
+      const updatedWater = waterReadings.find(r => r.id === reading.id);
+      
+      const isRentPaid = !updatedRent || updatedRent.status === 'paid';
+      const isWaterPaid = updatedWater?.status === 'paid';
+      
+      if (isRentPaid && isWaterPaid && updatedWater) {
+        const periodName = updatedWater.period;
+        const rentTotal = updatedRent ? updatedRent.amount_paid : 0;
+        const waterTotal = updatedWater.amount_paid;
+        downloadReceipt(reading.tenant, periodName, rentTotal, waterTotal, method, updatedWater);
+        success('Receipt generated', 'Rent and water fully paid for this period.');
+      }
+
       onClose();
     } finally {
       setIsSubmitting(false);

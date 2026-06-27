@@ -300,3 +300,99 @@ export function downloadPropertyReport(
   const dateStr = new Date().toISOString().split('T')[0];
   doc.save(`property-report-${property.name.replace(/\s+/g, '-').toLowerCase()}-${dateStr}.pdf`);
 }
+
+// ── Payment Receipt ────────────────────────────────────────────────────────
+
+export function downloadReceipt(
+  tenant: TenantConfig,
+  periodName: string,
+  rentPaid: number,
+  waterPaid: number,
+  paymentMethod: string,
+  waterReading?: WaterReading
+): void {
+  const doc = new jsPDF();
+
+  const startY = drawCorporateHeader(doc, 'Payment Receipt', `Date: ${new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })}`);
+
+  doc.setFillColor(250, 250, 252);
+  doc.setDrawColor(230, 230, 235);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(14, startY, 182, 34, 2, 2, 'FD');
+
+  doc.setTextColor(20, 30, 50);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Received From: ${tenant.first_name} ${tenant.last_name}`, 20, startY + 9);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Unit: ${tenant.unit}`, 20, startY + 16);
+  doc.text(`Property: ${tenant.property}`, 20, startY + 23);
+  doc.text(`Billing Period: ${periodName}`, 20, startY + 30);
+  
+  doc.text(`Payment Method: ${paymentMethod}`, 100, startY + 16);
+  doc.text(`Receipt No: RCT-${Math.floor(Math.random() * 1000000)}`, 100, startY + 23);
+
+  const totalPaid = rentPaid + waterPaid;
+  doc.setTextColor(20, 30, 50);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Payment Summary', 14, startY + 46);
+
+  const tableBody = [
+    ['Rent Payment', rentPaid.toLocaleString()],
+    ['Water Bill Payment', waterPaid.toLocaleString()],
+  ];
+
+  if (waterReading && waterReading.curr_reading > 0) {
+    tableBody.push([
+      `Water Readings (Prev: ${waterReading.prev_reading} m³, Curr: ${waterReading.curr_reading} m³)`,
+      ''
+    ]);
+  }
+
+  tableBody.push(['Total Paid', totalPaid.toLocaleString()]);
+
+  autoTable(doc, {
+    startY: startY + 50,
+    head: [['Description', 'Amount Paid (KES)']],
+    body: tableBody,
+    theme: 'grid',
+    styles:     { fontSize: 10, cellPadding: 6 },
+    headStyles: { fillColor: [245, 245, 245], textColor: [20, 30, 50], fontStyle: 'bold', lineColor: [220, 220, 220], lineWidth: 0.1 },
+    bodyStyles: { textColor: [60, 60, 60], lineColor: [220, 220, 220], lineWidth: 0.1 },
+    alternateRowStyles: { fillColor: [252, 252, 252] },
+    columnStyles: {
+      1: { halign: 'right', fontStyle: 'bold' },
+    },
+    didParseCell: (data) => {
+      const isTotalRow = data.row.index === tableBody.length - 1;
+      const isReadingRow = waterReading && waterReading.curr_reading > 0 && data.row.index === 2;
+
+      if (isTotalRow && data.section === 'body') {
+        data.cell.styles.fillColor = [240, 248, 255];
+        data.cell.styles.textColor = [14, 116, 144];
+      }
+      if (isReadingRow && data.section === 'body') {
+        data.cell.styles.textColor = [120, 120, 120];
+        data.cell.styles.fontStyle = 'italic';
+      }
+    }
+  });
+
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text(
+      `© ${new Date().getFullYear()} RentFlow Properties Ltd · Page ${i} of ${pageCount}`,
+      105, 290, { align: 'center' }
+    );
+  }
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  doc.save(`receipt-${tenant.first_name}-${tenant.last_name}-${periodName.replace(/\s+/g, '-')}-${dateStr}.pdf`);
+}
