@@ -273,6 +273,16 @@ export const WaterBilling: React.FC = () => {
     })));
   }
 
+  function handleDownloadReceipt(reading: WaterReading & { tenant: TenantConfig }) {
+    const { rentRecords } = useBillingStore.getState();
+    const updatedRent = rentRecords.find(r => r.tenant_id === reading.tenant_id && r.period_key === reading.period_key);
+    
+    const rentTotal = updatedRent ? updatedRent.amount_paid : 0;
+    const waterTotal = reading.amount_paid;
+    // We can default method to 'System' since water readings don't have transaction breakdown in UI directly
+    downloadReceipt(reading.tenant, reading.period, rentTotal, waterTotal, 'System', reading);
+  }
+
   async function saveRate(tenantId: string) {
     const parsed = parseFloat(tempRate);
     if (!parsed || parsed <= 0) return;
@@ -444,6 +454,13 @@ export const WaterBilling: React.FC = () => {
                             style={{ padding: '6px 12px', fontSize: 12 }}
                             onClick={() => setPayWaterModal({ ...r, tenant })}>
                             Pay
+                          </button>
+                        )}
+                        {r && r.amount_paid > 0 && (
+                          <button type="button" className="btn-organic btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: 12 }}
+                            onClick={() => handleDownloadReceipt({ ...r, tenant })}>
+                            Receipt
                           </button>
                         )}
                       </div>

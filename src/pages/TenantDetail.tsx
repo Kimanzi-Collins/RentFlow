@@ -270,6 +270,15 @@ export const TenantDetail: React.FC = () => {
     downloadTenantStatement(tenant, [], waterHistory);
   }
 
+  function handleDownloadReceipt(record: RentRecord) {
+    if (!tenant) return;
+    const wRecord = waterHistory.find(w => w.period_key === record.period_key);
+    const method = record.transactions.length > 0 ? record.transactions[record.transactions.length - 1].method : 'System';
+    const rentPaid = record.amount_paid;
+    const waterPaid = wRecord ? wRecord.amount_paid : 0;
+    downloadReceipt(tenant, record.period, rentPaid, waterPaid, method, wRecord);
+  }
+
   // Ensure rent records exist for all available periods when user views rent tab
   function handleRentTabClick() {
     const periods = getAvailablePeriods();
@@ -491,6 +500,12 @@ export const TenantDetail: React.FC = () => {
                           <button type="button" className="btn-organic btn-primary" style={{ padding: '5px 12px', fontSize: 12 }}
                             onClick={() => setPayModal(record)}>
                             Pay
+                          </button>
+                        )}
+                        {record.amount_paid > 0 && (
+                          <button type="button" className="btn-organic btn-secondary" style={{ padding: '5px 12px', fontSize: 12, marginLeft: record.status !== 'paid' ? 6 : 0 }}
+                            onClick={() => handleDownloadReceipt(record)}>
+                            Receipt
                           </button>
                         )}
                         {record.transactions.length > 0 && (
