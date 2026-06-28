@@ -198,7 +198,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export const Dashboard: React.FC = () => {
   const { profile, sessionStartTime, lastActivity } = useAuthStore();
-  const { tenants, rentRecords, getTenantOutstanding, getRentForPeriod } = useBillingStore();
+  const { tenants, rentRecords, getTenantOutstanding, getTenantRentHistory, getRentForPeriod } = useBillingStore();
   const { properties } = usePropertyStore();
   const { units } = useUnitStore();
   const { tickets } = useMaintenanceStore();
@@ -229,7 +229,20 @@ export const Dashboard: React.FC = () => {
 
   const OVERDUE_TENANTS = tenants.map(t => {
     const outstanding = getTenantOutstanding(t.id);
-    return { ...t, amount: outstanding, name: `${t.first_name} ${t.last_name}`, initials: `${t.first_name?.[0] || ''}${t.last_name?.[0] || ''}`, days: 0, color: '#ef4444' };
+    let daysOverdue = 0;
+    if (outstanding > 0) {
+      const history = getTenantRentHistory(t.id);
+      const oldestUnpaid = history.filter(r => r.balance > 0).sort((a, b) => a.period_key.localeCompare(b.period_key))[0];
+      if (oldestUnpaid) {
+        const [y, m] = oldestUnpaid.period_key.split('-').map(Number);
+        const dueDate = new Date(y, m - 1, 5); // 5th of that month
+        const today = new Date();
+        const diffTime = today.getTime() - dueDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        daysOverdue = Math.max(0, diffDays);
+      }
+    }
+    return { ...t, amount: outstanding, name: `${t.first_name} ${t.last_name}`, initials: `${t.first_name?.[0] || ''}${t.last_name?.[0] || ''}`, days: daysOverdue, color: '#ef4444' };
   }).filter(t => t.amount > 0).sort((a,b) => b.amount - a.amount).slice(0, 3);
 
   const pendingTickets = tickets.filter(t => t.status !== 'resolved');

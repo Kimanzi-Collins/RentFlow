@@ -202,7 +202,10 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { data, error } = await supabase.auth.signUp({
             email, password,
-            options: { data: { full_name: fullName, role, landlord_id: landlordId } },
+            options: { 
+              data: { full_name: fullName, role, landlord_id: landlordId },
+              emailRedirectTo: 'https://rentflow2.netlify.app/sign-in'
+            },
           });
           if (error) throw error;
           if (data.user) {
