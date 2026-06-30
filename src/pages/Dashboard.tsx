@@ -198,7 +198,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 // ── Dashboard ──────────────────────────────────────────────────────────────
 export const Dashboard: React.FC = () => {
   const { profile, sessionStartTime, lastActivity } = useAuthStore();
-  const { tenants, rentRecords, getTenantOutstanding, getTenantRentHistory, getRentForPeriod } = useBillingStore();
+  const { tenants, rentRecords, getTenantOutstanding, getTenantRentHistory, getRentForPeriod, waterReadings } = useBillingStore();
   const { properties } = usePropertyStore();
   const { units } = useUnitStore();
   const { tickets } = useMaintenanceStore();
@@ -206,6 +206,7 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { success, info } = useToast();
   const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'Admin';
+  const isLandlord = profile?.role === 'landlord';
 
   const [showPayModal, setShowPayModal] = useState(false);
 
@@ -250,6 +251,24 @@ export const Dashboard: React.FC = () => {
   const TASKS = pendingTickets.slice(0,3).map(t => ({
     icon: Wrench, label: `${t.title} – ${t.unit}`, date: t.date, color: t.priority === 'High' ? '#ef4444' : '#f59e0b'
   }));
+
+  // Caretaker specific stats
+  const MAINTENANCE_PIE = React.useMemo(() => {
+    const data = [
+      { name: 'Open', value: tickets.filter(t => t.status === 'open').length, color: '#ef4444' },
+      { name: 'In Progress', value: tickets.filter(t => t.status === 'in_progress').length, color: '#f59e0b' },
+      { name: 'Resolved', value: tickets.filter(t => t.status === 'resolved').length, color: '#10b981' }
+    ].filter(s => s.value > 0);
+    return data.length > 0 ? data : [{ name: 'No Tickets', value: 1, color: '#e5e7eb' }];
+  }, [tickets]);
+
+  const WATER_PIE = React.useMemo(() => {
+    const currentMonthReadings = waterReadings.filter(r => r.period_key === CURRENT_PERIOD_KEY).length;
+    return [
+      { name: 'Recorded', value: currentMonthReadings, color: '#3b82f6' },
+      { name: 'Pending', value: Math.max(0, activeTenantsCount - currentMonthReadings), color: '#e5e7eb' }
+    ];
+  }, [waterReadings, activeTenantsCount]);
 
   // All-time collected revenue (not just current month)
   const allTimeCollected = rentRecords.reduce((sum, r) => sum + r.amount_paid, 0);
@@ -388,28 +407,46 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/payments')}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CreditCard size={18} color="#10b981" />
+        {isLandlord ? (
+          <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/payments')}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CreditCard size={18} color="#10b981" />
+              </div>
+              <ArrowUpRight size={16} color="var(--text-muted)" />
             </div>
-            <ArrowUpRight size={16} color="var(--text-muted)" />
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Monthly Expected</div>
+            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
+              {(() => {
+                const expected = tenants.filter(t => t.status === 'active').reduce((s, t) => s + t.rent_amount, 0);
+                return expected >= 1_000_000
+                  ? `${(expected / 1_000_000).toFixed(1)}M`
+                  : expected >= 1_000
+                  ? `${Math.round(expected / 1_000)}K`
+                  : expected.toLocaleString();
+              })()}
+            </div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: '#f0fdf4', color: '#10b981', padding: '4px 10px', borderRadius: 8, fontWeight: 700 }}>
+              <TrendingUp size={12} /> Collected: KSh {totalRentPaid.toLocaleString()}
+            </div>
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Monthly Expected</div>
-          <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
-            {(() => {
-              const expected = tenants.filter(t => t.status === 'active').reduce((s, t) => s + t.rent_amount, 0);
-              return expected >= 1_000_000
-                ? `${(expected / 1_000_000).toFixed(1)}M`
-                : expected >= 1_000
-                ? `${Math.round(expected / 1_000)}K`
-                : expected.toLocaleString();
-            })()}
+        ) : (
+          <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/tenants')}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={18} color="#10b981" />
+              </div>
+              <ArrowUpRight size={16} color="var(--text-muted)" />
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Total Tenants</div>
+            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
+              {activeTenantsCount}
+            </div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: '#f0fdf4', color: '#10b981', padding: '4px 10px', borderRadius: 8, fontWeight: 700 }}>
+              <Users size={12} /> {tenants.length - activeTenantsCount} inactive
+            </div>
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: '#f0fdf4', color: '#10b981', padding: '4px 10px', borderRadius: 8, fontWeight: 700 }}>
-            <TrendingUp size={12} /> Collected: KSh {totalRentPaid.toLocaleString()}
-          </div>
-        </div>
+        )}
 
         <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/units')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -442,92 +479,83 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* ── Middle Row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        <div className="card-organic gsap-item">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Collection</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>This week</p>
-            </div>
-            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-main)' }}>
-              {totalRentDue > 0 ? Math.round((totalRentPaid / totalRentDue) * 100) : weeklyPct}%
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={COLLECTION_DATA} barSize={10} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
-              <XAxis
-                dataKey="day"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11, fill: '#9ca3af', fontFamily: 'var(--font-main)', fontWeight: 600 }}
-              />
-              <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)', radius: 6 }} />
-              <Bar dataKey="amount" radius={[5, 5, 0, 0]}>
-                {COLLECTION_DATA.map((_, i) => (
-                  <Cell key={i} fill={i === currentDayOfWeek ? '#171717' : '#e5e7eb'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Revenue Trend */}
-        <div className="card-organic gsap-item">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Revenue Trend</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>KSh (thousands)</p>
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: '#f0fdf4', padding: '4px 10px', borderRadius: 8 }}>Live Data</div>
-          </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <AreaChart data={revenueTrend} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#171717" stopOpacity={0.12} />
-                  <stop offset="95%" stopColor="#171717" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke="rgba(0,0,0,0.04)" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af', fontFamily: 'var(--font-main)', fontWeight: 600 }} />
-              <Tooltip
-                contentStyle={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 10, fontFamily: 'var(--font-main)', fontSize: 12 }}
-                formatter={(v: number) => [`KSh ${v}K`, 'Revenue']}
-              />
-              <Area type="monotone" dataKey="value" stroke="#171717" strokeWidth={2} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#171717' }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Priority Tasks */}
-        <div className="card-organic gsap-item">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Priority Tasks</h3>
-            <button type="button" onClick={() => success('Task created', 'New task added to your queue')} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }}>+ New</button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {TASKS.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
-                <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>Inbox zero</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>No pending tasks for today.</div>
+      {isLandlord && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="card-organic gsap-item">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Collection</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>This week</p>
               </div>
-            ) : TASKS.map((task, i) => (
-              <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <task.icon size={17} color={task.color} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 500 }}>Due {task.date}</div>
-                </div>
-                <ChevronRight size={14} color="var(--text-muted)" />
+              <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-main)' }}>
+                {totalRentDue > 0 ? Math.round((totalRentPaid / totalRentDue) * 100) : weeklyPct}%
+              </span>
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={COLLECTION_DATA} barSize={10} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af', fontFamily: 'var(--font-main)', fontWeight: 600 }} />
+                <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)', radius: 6 }} />
+                <Bar dataKey="amount" radius={[5, 5, 0, 0]}>
+                  {COLLECTION_DATA.map((_, i) => (
+                    <Cell key={i} fill={i === currentDayOfWeek ? '#171717' : '#e5e7eb'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="card-organic gsap-item">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Revenue Trend</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>KSh (thousands)</p>
               </div>
-            ))}
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: '#f0fdf4', padding: '4px 10px', borderRadius: 8 }}>Live Data</div>
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={revenueTrend} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#171717" stopOpacity={0.12} />
+                    <stop offset="95%" stopColor="#171717" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="rgba(0,0,0,0.04)" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af', fontFamily: 'var(--font-main)', fontWeight: 600 }} />
+                <Tooltip contentStyle={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 10, fontFamily: 'var(--font-main)', fontSize: 12 }} formatter={(v: number) => [`KSh ${v}K`, 'Revenue']} />
+                <Area type="monotone" dataKey="value" stroke="#171717" strokeWidth={2} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#171717' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="card-organic gsap-item">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Priority Tasks</h3>
+              <button type="button" onClick={() => success('Task created', 'New task added to your queue')} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }}>+ New</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {TASKS.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
+                  <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>Inbox zero</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>No pending tasks for today.</div>
+                </div>
+              ) : TASKS.map((task, i) => (
+                <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <task.icon size={17} color={task.color} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 500 }}>Due {task.date}</div>
+                  </div>
+                  <ChevronRight size={14} color="var(--text-muted)" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Bottom Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -558,50 +586,114 @@ export const Dashboard: React.FC = () => {
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Unit {t.unit} · <span style={{ color: '#ef4444', fontWeight: 600 }}>{t.days}d late</span></div>
                   </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 800 }}>KSh {t.amount.toLocaleString()}</div>
+                {isLandlord && (
+                  <div style={{ fontSize: 13, fontWeight: 800 }}>KSh {t.amount.toLocaleString()}</div>
+                )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Collection Progress – Donut */}
-        <div className="card-organic gsap-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ alignSelf: 'flex-start' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Collection Rate</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </p>
-          </div>
-          <div style={{ position: 'relative', width: '100%', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={COLLECTION_PIE}
-                  cx="50%" cy="50%"
-                  innerRadius={58} outerRadius={80}
-                  startAngle={90} endAngle={-270}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  <Cell fill="#171717" />
-                  <Cell fill="#f3f4f6" />
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ position: 'absolute', textAlign: 'center', pointerEvents: 'none' }}>
-              <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1 }}>{COLLECTION_PIE[0]?.value || 0}%</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginTop: 3 }}>collected</div>
+        {isLandlord && (
+          {/* Collection Progress – Donut */}
+          <div className="card-organic gsap-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ alignSelf: 'flex-start' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Collection Rate</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+            <div style={{ position: 'relative', width: '100%', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={COLLECTION_PIE}
+                    cx="50%" cy="50%"
+                    innerRadius={58} outerRadius={80}
+                    startAngle={90} endAngle={-270}
+                    dataKey="value"
+                    strokeWidth={0}
+                  >
+                    <Cell fill="#171717" />
+                    <Cell fill="#f3f4f6" />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position: 'absolute', textAlign: 'center', pointerEvents: 'none' }}>
+                <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1 }}>{COLLECTION_PIE[0]?.value || 0}%</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginTop: 3 }}>collected</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#171717', display: 'inline-block' }} /> Collected
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', display: 'inline-block' }} /> Pending
+              </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#171717', display: 'inline-block' }} /> Collected
+        )}
+
+        {!isLandlord && (
+          <>
+            <div className="card-organic gsap-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ alignSelf: 'flex-start' }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Maintenance Status</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>All tickets</p>
+              </div>
+              <div style={{ position: 'relative', width: '100%', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie data={MAINTENANCE_PIE} cx="50%" cy="50%" innerRadius={58} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
+                      {MAINTENANCE_PIE.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>{pendingTickets.length}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>Pending</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#ef4444' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} /> Open
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#f59e0b' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} /> In Prog
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', display: 'inline-block' }} /> Pending
+
+            <div className="card-organic gsap-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ alignSelf: 'flex-start' }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Water Readings</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>This month</p>
+              </div>
+              <div style={{ position: 'relative', width: '100%', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie data={WATER_PIE} cx="50%" cy="50%" innerRadius={58} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
+                      {WATER_PIE.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>{WATER_PIE[0].value}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>Recorded</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#3b82f6' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} /> Done
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e5e7eb', display: 'inline-block' }} /> Pending
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* Active Session Timer */}
         <div className="gsap-item" style={{ background: '#0a0a0a', borderRadius: 20, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden', color: '#fff', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
