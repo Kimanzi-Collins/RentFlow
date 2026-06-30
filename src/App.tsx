@@ -20,6 +20,29 @@ import { useUnitStore } from '@/stores/unitStore';
 import { useBillingStore } from '@/stores/billingStore';
 import { useMaintenanceStore } from '@/stores/maintenanceStore';
 
+function InactivityTimer() {
+  const signOut = useAuthStore(s => s.signOut);
+  const isAuthenticated = useIsAuthenticated();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      // 15 minutes
+      timeoutId = setTimeout(() => { signOut(); }, 15 * 60 * 1000);
+    };
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    resetTimer();
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [isAuthenticated, signOut]);
+  return null;
+}
+
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
   
@@ -38,7 +61,12 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, fetchProperties, fetchUnits, fetchBillingData, fetchTickets]);
 
   if (!isAuthenticated) return <Navigate to="/sign-in" replace />;
-  return <AppShell>{children}</AppShell>;
+  return (
+    <>
+      <InactivityTimer />
+      <AppShell>{children}</AppShell>
+    </>
+  );
 }
 
 export function App() {

@@ -9,7 +9,7 @@ import {
 import {
   TrendingUp, Users, Home, CreditCard, AlertCircle,
   Plus, ArrowUpRight, Calendar, CheckCircle2, Clock,
-  ChevronRight, Pause, Square, Wrench, Download, Bell,
+  ChevronRight, Pause, Square, Wrench, Download, Bell, Droplets
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useNavigate } from 'react-router-dom';
@@ -368,9 +368,11 @@ export const Dashboard: React.FC = () => {
       {/* ── Header ── */}
       <div ref={headerRef} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-            {greeting}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+              {greeting}
+            </p>
+          </div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.025em', lineHeight: 1.2, margin: 0 }}>
             {firstName} 👋
           </h1>
@@ -391,21 +393,38 @@ export const Dashboard: React.FC = () => {
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 gsap-item">
 
-        <div className="card-primary relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/properties')}>
-          <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, background: 'rgba(255,255,255,0.07)', borderRadius: '50%' }} />
-          <div style={{ position: 'absolute', bottom: -20, left: -10, width: 70, height: 70, background: 'rgba(255,255,255,0.04)', borderRadius: '50%' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Home size={18} color="#fff" />
+        {isLandlord ? (
+          <div className="card-primary relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/properties')}>
+            <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, background: 'rgba(255,255,255,0.07)', borderRadius: '50%' }} />
+            <div style={{ position: 'absolute', bottom: -20, left: -10, width: 70, height: 70, background: 'rgba(255,255,255,0.04)', borderRadius: '50%' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Home size={18} color="#fff" />
+              </div>
+              <ArrowUpRight size={16} color="rgba(255,255,255,0.5)" />
             </div>
-            <ArrowUpRight size={16} color="rgba(255,255,255,0.5)" />
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Properties</div>
+            <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1, marginBottom: 10 }}>{props24}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: 'rgba(255,255,255,0.12)', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
+              <TrendingUp size={12} /> +{createdThisMonth} this month
+            </div>
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Properties</div>
-          <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1, marginBottom: 10 }}>{props24}</div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: 'rgba(255,255,255,0.12)', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
-            <TrendingUp size={12} /> +{createdThisMonth} this month
+        ) : (
+          <div className="card-primary relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/units')}>
+            <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, background: 'rgba(255,255,255,0.07)', borderRadius: '50%' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Home size={18} color="#fff" />
+              </div>
+              <ArrowUpRight size={16} color="rgba(255,255,255,0.5)" />
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Vacant Units</div>
+            <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1, marginBottom: 10 }}>{units.length - activeTenantsCount}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: 'rgba(255,255,255,0.12)', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
+              Out of {units.length} total units
+            </div>
           </div>
-        </div>
+        )}
 
         {isLandlord ? (
           <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/payments')}>
@@ -448,19 +467,37 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
 
-        <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/units')}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle2 size={18} color="#3b82f6" />
+        {isLandlord ? (
+          <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/units')}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle2 size={18} color="#3b82f6" />
+              </div>
+              <ArrowUpRight size={16} color="var(--text-muted)" />
             </div>
-            <ArrowUpRight size={16} color="var(--text-muted)" />
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Occupancy</div>
+            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
+              {occ88}<span style={{ fontSize: 18 }}>%</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{activeTenantsCount} / {units.length} units filled</div>
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Occupancy</div>
-          <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
-            {occ88}<span style={{ fontSize: 18 }}>%</span>
+        ) : (
+          <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/water')}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Droplets size={18} color="#3b82f6" />
+              </div>
+              <ArrowUpRight size={16} color="var(--text-muted)" />
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Water Readings</div>
+            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 10, color: 'var(--text-main)' }}>
+              {Math.max(0, activeTenantsCount - waterReadings.filter(r => r.period_key === CURRENT_PERIOD_KEY).length)}
+            </div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: '#eff6ff', color: '#3b82f6', padding: '4px 10px', borderRadius: 8, fontWeight: 700 }}>
+              Readings left this month
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{activeTenantsCount} / {units.length} units filled</div>
-        </div>
+        )}
 
         <div className="card-organic relative overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => navigate('/maintenance')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -560,42 +597,74 @@ export const Dashboard: React.FC = () => {
       {/* ── Bottom Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* Overdue Payments */}
-        <div className="card-organic gsap-item">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Overdue Payments</h3>
-            <button type="button" onClick={() => success('Reminders sent', `SMS reminders sent to ${OVERDUE_TENANTS.length} tenants`)} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 11 }}>
-              <Bell size={12} /> Remind All
-            </button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 240, overflowY: 'auto', paddingRight: 4 }}>
-            {OVERDUE_TENANTS.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
-                <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>All caught up!</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>No overdue rent at the moment.</div>
-              </div>
-            ) : OVERDUE_TENANTS.map((t, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, borderBottom: i !== OVERDUE_TENANTS.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: t.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                    {t.initials}
+        {/* Overdue Payments (Landlord) or Recent Maintenance (Caretaker) */}
+        {isLandlord ? (
+          <div className="card-organic gsap-item">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Overdue Payments</h3>
+              <button type="button" onClick={() => success('Reminders sent', `SMS reminders sent to ${OVERDUE_TENANTS.length} tenants`)} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 11 }}>
+                <Bell size={12} /> Remind All
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 240, overflowY: 'auto', paddingRight: 4 }}>
+              {OVERDUE_TENANTS.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
+                  <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>All caught up!</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>No overdue rent at the moment.</div>
+                </div>
+              ) : OVERDUE_TENANTS.map((t, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, borderBottom: i !== OVERDUE_TENANTS.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: t.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                      {t.initials}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{t.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Unit {t.unit} · <span style={{ color: '#ef4444', fontWeight: 600 }}>{t.days}d late</span></div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Unit {t.unit} · <span style={{ color: '#ef4444', fontWeight: 600 }}>{t.days}d late</span></div>
+                  <div style={{ fontSize: 13, fontWeight: 800 }}>KSh {t.amount.toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="card-organic gsap-item">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Recent Maintenance</h3>
+              <button type="button" onClick={() => navigate('/maintenance')} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 11 }}>
+                View All
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 240, overflowY: 'auto', paddingRight: 4 }}>
+              {pendingTickets.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
+                  <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>All clear!</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>No pending maintenance tickets.</div>
+                </div>
+              ) : pendingTickets.map((t, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, borderBottom: i !== pendingTickets.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: t.priority === 'High' ? '#fef2f2' : '#fffbeb', color: t.priority === 'High' ? '#ef4444' : '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Wrench size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{t.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Unit {t.unit}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.priority === 'High' ? '#ef4444' : '#f59e0b', background: t.priority === 'High' ? '#fef2f2' : '#fffbeb', padding: '4px 8px', borderRadius: 6 }}>
+                    {t.status.replace('_', ' ').toUpperCase()}
                   </div>
                 </div>
-                {isLandlord && (
-                  <div style={{ fontSize: 13, fontWeight: 800 }}>KSh {t.amount.toLocaleString()}</div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {isLandlord && (
-          {/* Collection Progress – Donut */}
           <div className="card-organic gsap-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ alignSelf: 'flex-start' }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Collection Rate</h3>
