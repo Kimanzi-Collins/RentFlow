@@ -243,7 +243,7 @@ export const Dashboard: React.FC = () => {
       }
     }
     return { ...t, amount: outstanding, name: `${t.first_name} ${t.last_name}`, initials: `${t.first_name?.[0] || ''}${t.last_name?.[0] || ''}`, days: daysOverdue, color: '#ef4444' };
-  }).filter(t => t.amount > 0).sort((a,b) => b.amount - a.amount).slice(0, 3);
+  }).filter(t => t.amount > 0).sort((a,b) => b.amount - a.amount);
 
   const pendingTickets = tickets.filter(t => t.status !== 'resolved');
   
@@ -536,11 +536,11 @@ export const Dashboard: React.FC = () => {
         <div className="card-organic gsap-item">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Overdue Payments</h3>
-            <button type="button" onClick={() => success('Reminders sent', 'SMS reminders sent to 3 tenants')} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 11 }}>
+            <button type="button" onClick={() => success('Reminders sent', `SMS reminders sent to ${OVERDUE_TENANTS.length} tenants`)} className="btn-organic btn-secondary" style={{ padding: '6px 12px', fontSize: 11 }}>
               <Bell size={12} /> Remind All
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 240, overflowY: 'auto', paddingRight: 4 }}>
             {OVERDUE_TENANTS.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12 }}>
                 <CheckCircle2 size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />

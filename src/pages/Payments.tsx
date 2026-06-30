@@ -101,9 +101,10 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
       const updatedWater = waterReadings.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod);
       
       const isRentPaid = updatedRent?.status === 'paid';
-      const isWaterPaid = !updatedWater || updatedWater.status === 'paid';
+      const hasWaterRecord = !!updatedWater;
+      const isWaterPaid = updatedWater?.status === 'paid';
       
-      if (isRentPaid && isWaterPaid && updatedRent) {
+      if (isRentPaid && hasWaterRecord && isWaterPaid && updatedRent) {
         const periodName = updatedRent.period;
         const rentTotal = updatedRent.amount_paid;
         const waterTotal = updatedWater ? updatedWater.amount_paid : 0;

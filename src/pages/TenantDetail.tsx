@@ -59,9 +59,10 @@ const PayModal: React.FC<{
       const updatedWater = waterReadings.find(r => r.tenant_id === tenantId && r.period_key === record.period_key);
       
       const isRentPaid = updatedRent?.status === 'paid';
-      const isWaterPaid = !updatedWater || updatedWater.status === 'paid';
+      const hasWaterRecord = !!updatedWater;
+      const isWaterPaid = updatedWater?.status === 'paid';
       
-      if (isRentPaid && isWaterPaid && updatedRent && tenant) {
+      if (isRentPaid && hasWaterRecord && isWaterPaid && updatedRent && tenant) {
         const periodName = updatedRent.period;
         const rentTotal = updatedRent.amount_paid;
         const waterTotal = updatedWater ? updatedWater.amount_paid : 0;
