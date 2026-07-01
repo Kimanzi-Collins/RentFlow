@@ -33,3 +33,5 @@ SKILLS.md
 SUPABASE_SETUP.md
 FUTURE_SETTINGS.md
 supabase.sql
+security_fixes.sql
+performance_fixes.sql

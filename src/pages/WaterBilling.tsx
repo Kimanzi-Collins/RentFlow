@@ -493,7 +493,7 @@ export const WaterBilling: React.FC = () => {
             <select aria-label="Select tenant" className="modal-input"
               value={recordModal.tenant.id}
               onChange={e => {
-                const t = activeTenants.find(x => x.id === Number(e.target.value));
+                const t = activeTenants.find(x => x.id === e.target.value);
                 if (t) setRecordModal({ tenant: t, existing: getReading(t.id) });
               }}>
               {activeTenants.map(t => (
