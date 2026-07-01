@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { downloadPDF, downloadReceipt } from '@/lib/export';
+import { downloadPDF, downloadReceipt, downloadWaterInvoice } from '@/lib/export';
 import {
   useBillingStore,
   getAvailablePeriods,
@@ -59,6 +59,18 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
       }
       
       success('Reading recorded', `${tenant.first_name} – Unit ${tenant.unit}: ${consumed} m³ × KSh ${rate} = KSh ${totalBill.toLocaleString()}`);
+      
+      // Auto-download the small invoice slip
+      downloadWaterInvoice(
+        tenant,
+        makePeriodLabel(year, month),
+        prevReading,
+        Number(curr),
+        consumed,
+        Number(rate),
+        totalBill
+      );
+
       onClose();
     } finally {
       setIsSubmitting(false);

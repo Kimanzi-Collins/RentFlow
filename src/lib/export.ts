@@ -396,3 +396,68 @@ export function downloadReceipt(
   const dateStr = new Date().toISOString().split('T')[0];
   doc.save(`receipt-${tenant.first_name}-${tenant.last_name}-${periodName.replace(/\s+/g, '-')}-${dateStr}.pdf`);
 }
+
+// ── Water Invoice Slip ─────────────────────────────────────────────────────
+
+export function downloadWaterInvoice(
+  tenant: TenantConfig,
+  periodName: string,
+  prevReading: number,
+  currReading: number,
+  unitsConsumed: number,
+  rate: number,
+  totalBill: number
+): void {
+  // Use a5 format for a smaller slip
+  const doc = new jsPDF({ format: 'a5' });
+
+  const startY = drawCorporateHeader(doc, 'Water Bill Invoice', `Billing Period: ${periodName}`);
+
+  doc.setFillColor(250, 250, 252);
+  doc.setDrawColor(230, 230, 235);
+  doc.setLineWidth(0.5);
+  // a5 width is ~148mm, so we use width 120 (14 + 120 = 134mm, leaves 14mm right margin)
+  doc.roundedRect(14, startY, 120, 28, 2, 2, 'FD');
+
+  doc.setTextColor(20, 30, 50);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Billed To: ${tenant.first_name} ${tenant.last_name}`, 18, startY + 8);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Unit: ${tenant.unit} | Property: ${tenant.property}`, 18, startY + 15);
+  doc.text(`Date Recorded: ${new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })}`, 18, startY + 22);
+
+  autoTable(doc, {
+    startY: startY + 34,
+    head: [['Description', 'Value']],
+    body: [
+      ['Previous Meter Reading', `${prevReading.toLocaleString()} m³`],
+      ['Current Meter Reading', `${currReading.toLocaleString()} m³`],
+      ['Total Units Consumed', `${unitsConsumed.toLocaleString()} m³`],
+      ['Rate per Unit (m³)', `KSh ${rate.toLocaleString()}`],
+      ['Total Water Bill', `KSh ${totalBill.toLocaleString()}`],
+    ],
+    theme: 'grid',
+    styles:     { fontSize: 10, cellPadding: 5 },
+    headStyles: { fillColor: [240, 248, 255], textColor: [14, 116, 144], fontStyle: 'bold', lineColor: [220, 220, 220], lineWidth: 0.1 },
+    bodyStyles: { textColor: [40, 40, 40], lineColor: [220, 220, 220], lineWidth: 0.1 },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      1: { halign: 'right', fontStyle: 'bold' }
+    },
+    margin: { left: 14, right: 14 },
+    didParseCell: (data) => {
+      if (data.row.index === 4 && data.section === 'body') {
+        data.cell.styles.fillColor = [240, 248, 255];
+        data.cell.styles.textColor = [14, 116, 144];
+        data.cell.styles.fontSize = 11;
+      }
+    }
+  });
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  doc.save(`water-invoice-${tenant.first_name}-${tenant.unit}-${periodName.replace(/\s+/g, '-')}-${dateStr}.pdf`);
+}
