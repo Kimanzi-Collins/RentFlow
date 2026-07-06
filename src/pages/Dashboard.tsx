@@ -39,6 +39,7 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [amount, setAmount]       = useState('');
   const [note, setNote]           = useState('');
   const [err, setErr]             = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Compute balances fresh every render
   const tenant       = activeTenants.find(t => t.id === tenantId);
@@ -66,26 +67,31 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const n = Number(amount);
     if (!n || n <= 0) { setErr('Enter a valid amount.'); return; }
     setErr('');
+    setIsSubmitting(true);
 
-    const { year, month } = parsePeriodKey(periodKey);
+    try {
+      const { year, month } = parsePeriodKey(periodKey);
 
-    if (payType === 'rent') {
-      await ensureRentRecord(tenantId, year, month);
-      const res: any = await recordPayment(tenantId, periodKey, n, method, note || undefined);
-      if (res && res.error) {
-        setErr(res.error);
-        return;
+      if (payType === 'rent') {
+        await ensureRentRecord(tenantId, year, month);
+        const res: any = await recordPayment(tenantId, periodKey, n, method, note || undefined);
+        if (res && res.error) {
+          setErr(res.error);
+          return;
+        }
+        success('Rent payment recorded', `KSh ${n.toLocaleString()} — ${tenant.first_name} ${tenant.last_name}`);
+      } else {
+        if (!waterRecord) { setErr('No water reading for this period.'); return; }
+        if (waterRecord.status === 'paid') { setErr('Water bill already paid for this period.'); return; }
+        if (n > waterBalance) { setErr(`Amount exceeds water balance of KSh ${waterBalance.toLocaleString()}.`); return; }
+        const res = await recordWaterPayment(waterRecord.id, n);
+        if (res?.error) { setErr(res.error); return; }
+        success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${tenant.unit}`);
       }
-      success('Rent payment recorded', `KSh ${n.toLocaleString()} — ${tenant.first_name} ${tenant.last_name}`);
-    } else {
-      if (!waterRecord) { setErr('No water reading for this period.'); return; }
-      if (waterRecord.status === 'paid') { setErr('Water bill already paid for this period.'); return; }
-      if (n > waterBalance) { setErr(`Amount exceeds water balance of KSh ${waterBalance.toLocaleString()}.`); return; }
-      const res = await recordWaterPayment(waterRecord.id, n);
-      if (res?.error) { setErr(res.error); return; }
-      success('Water payment recorded', `KSh ${n.toLocaleString()} — Unit ${tenant.unit}`);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   }
 
   return (
@@ -152,8 +158,10 @@ const QuickPayModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       )}
 
       <div className="modal-form-actions">
-        <button type="button" className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-        <button type="submit" className="modal-btn-submit">Record Payment</button>
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+        <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Recording...' : 'Record Payment'}
+        </button>
       </div>
     </form>
   );

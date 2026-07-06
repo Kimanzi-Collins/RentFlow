@@ -119,7 +119,7 @@ interface BillingState {
   ensureRentRecord: (tenantId: string, year: number, month: number) => void;
   recordPayment: (tenantId: string, periodKey: string, amount: number, method: string, note?: string) => void;
 
-  recordWaterReading: (tenantId: string, unit: string, year: number, month: number, currReading: number, rateOverride?: number) => void;
+  recordWaterReading: (tenantId: string, unit: string, year: number, month: number, currReading: number, rateOverride?: number, overridePrevReading?: number) => void;
   getLastWaterReading: (tenantId: string) => WaterReading | null;
 
   getRentForPeriod: (pKey: string) => Array<RentRecord & { tenant: TenantConfig }>;
@@ -239,8 +239,8 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
 
       const waterReadings: WaterReading[] = (waterData || []).map(w => {
         const date = new Date(w.reading_date || new Date());
-        const periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const periodName = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+        const periodKey = w.period_key || `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const periodName = w.period || date.toLocaleString('default', { month: 'short', year: 'numeric' });
 
         const tenantId  = w.units?.leases?.[0]?.tenant_id || 'unknown';
         const totalAmt  = Number(w.total_amount   || 0);
@@ -458,7 +458,7 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
       return { error: (err as Error).message };
     }
   },
-  recordWaterReading: async (tenantId, unitNumber, year, month, currReading, rate) => {
+  recordWaterReading: async (tenantId, unitNumber, year, month, currReading, rate, overridePrevReading) => {
     try {
       const periodKey = `${year}-${String(month).padStart(2, '0')}`;
       const periodLabel = makePeriodLabel(year, month);
@@ -474,7 +474,9 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
         .sort((a, b) => b.period_key.localeCompare(a.period_key))[0];
       
       const tenant = tenants.find(t => t.id === tenantId);
-      const prevReading = lastR?.curr_reading ?? (tenant?.initial_water_reading || 0);
+      const prevReading = overridePrevReading !== undefined 
+        ? overridePrevReading 
+        : (lastR?.curr_reading ?? (tenant?.initial_water_reading || 0));
 
       // meter_readings has no tenant_id column — link is unit_id → leases → tenants
       const payload = {

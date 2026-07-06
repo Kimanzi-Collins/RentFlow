@@ -32,7 +32,8 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
   const { success, error: toastErr } = useToast();
 
   const lastReading = getLastWaterReading(tenant.id);
-  const prevReading = existing?.prev_reading ?? lastReading?.curr_reading ?? tenant.initial_water_reading;
+  const [overridePrev, setOverridePrev] = useState<number | null>(null);
+  const prevReading = overridePrev !== null ? overridePrev : (existing?.prev_reading ?? lastReading?.curr_reading ?? tenant.initial_water_reading);
 
   const [curr, setCurr]   = useState(existing ? String(existing.curr_reading) : '');
   const [rate, setRate]   = useState(String(existing?.rate ?? tenant.water_rate));
@@ -52,7 +53,7 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
     setIsSubmitting(true);
     
     try {
-      const res: any = await recordWaterReading(tenant.id, tenant.unit, year, month, Number(curr), Number(rate));
+      const res: any = await recordWaterReading(tenant.id, tenant.unit, year, month, Number(curr), Number(rate), overridePrev !== null ? overridePrev : undefined);
       if (res && res.error) {
         setErr(res.error);
         return;
@@ -91,7 +92,15 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
 
       <div className="modal-form-grid">
         <div>
-          <label className="modal-label">Previous Reading (m³)</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <label className="modal-label" style={{ marginBottom: 0 }}>Previous (m³)</label>
+            {!existing && overridePrev === null && (
+              <button type="button" onClick={() => setOverridePrev(0)} style={{ fontSize: 11, color: '#0284c7', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>Reset Meter</button>
+            )}
+            {!existing && overridePrev !== null && (
+              <button type="button" onClick={() => setOverridePrev(null)} style={{ fontSize: 11, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>Undo Reset</button>
+            )}
+          </div>
           <input className="modal-input" type="number" step="0.1" value={prevReading} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
         </div>
         <div>
@@ -277,12 +286,24 @@ export const WaterBilling: React.FC = () => {
 
   function handleExport() {
     if (!readings.length) { return; }
-    downloadPDF(`water-billing-${selectedPeriod}.pdf`, readings.map(r => ({
+    const rows: Record<string, unknown>[] = readings.map(r => ({
       Period: r.period, Unit: r.unit, Tenant: `${r.tenant.first_name} ${r.tenant.last_name}`,
       'Prev Reading': r.prev_reading, 'Curr Reading': r.curr_reading,
       'Units (m³)': r.units_consumed, 'Rate (KES/m³)': r.rate,
       'Amount (KES)': r.amount.toLocaleString(), Status: r.status,
-    })));
+    }));
+
+    const totalUnits = readings.reduce((sum, r) => sum + r.units_consumed, 0);
+    const totalAmount = readings.reduce((sum, r) => sum + r.amount, 0);
+
+    rows.push({
+      Period: '', Unit: '', Tenant: 'TOTAL',
+      'Prev Reading': '', 'Curr Reading': '',
+      'Units (m³)': totalUnits, 'Rate (KES/m³)': '',
+      'Amount (KES)': totalAmount.toLocaleString(), Status: '',
+    });
+
+    downloadPDF(`water-billing-${selectedPeriod}.pdf`, rows);
   }
 
   function handleDownloadReceipt(reading: WaterReading & { tenant: TenantConfig }) {

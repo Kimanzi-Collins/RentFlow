@@ -281,7 +281,7 @@ export const Payments: React.FC = () => {
   }, { scope: containerRef, dependencies: [selectedPeriod] });
 
   function handleExport() {
-    downloadPDF(`rent-payments-${selectedPeriod}.pdf`, sortedRows.map(r => ({
+    const rows: Record<string, unknown>[] = sortedRows.map(r => ({
       Period: selectedLabel,
       Tenant: `${r.tenant.first_name} ${r.tenant.last_name}`,
       Unit: r.tenant.unit,
@@ -289,7 +289,23 @@ export const Payments: React.FC = () => {
       'Paid (KES)': r.paid.toLocaleString(),
       'Balance (KES)': r.balance.toLocaleString(),
       Status: r.status,
-    })));
+    }));
+
+    const totalDue = sortedRows.reduce((sum, r) => sum + r.rentDue, 0);
+    const totalPaid = sortedRows.reduce((sum, r) => sum + r.paid, 0);
+    const totalBalance = sortedRows.reduce((sum, r) => sum + r.balance, 0);
+
+    rows.push({
+      Period: '',
+      Tenant: 'TOTAL',
+      Unit: '',
+      'Rent Due (KES)': totalDue.toLocaleString(),
+      'Paid (KES)': totalPaid.toLocaleString(),
+      'Balance (KES)': totalBalance.toLocaleString(),
+      Status: '',
+    });
+
+    downloadPDF(`rent-payments-${selectedPeriod}.pdf`, rows);
   }
 
   const STATUS_STYLE = {
