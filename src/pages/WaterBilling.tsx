@@ -94,10 +94,10 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <label className="modal-label" style={{ marginBottom: 0 }}>Previous (m³)</label>
-            {!existing && overridePrev === null && (
+            {overridePrev === null && (
               <button type="button" onClick={() => setOverridePrev(0)} style={{ fontSize: 11, color: '#0284c7', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>Reset Meter</button>
             )}
-            {!existing && overridePrev !== null && (
+            {overridePrev !== null && (
               <button type="button" onClick={() => setOverridePrev(null)} style={{ fontSize: 11, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>Undo Reset</button>
             )}
           </div>
