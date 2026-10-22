@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
 import { authenticateUser } from '../middleware/auth.js';
 
 const router = Router();
@@ -31,7 +30,7 @@ router.get('/summary', async (req: Request, res: Response) => {
     const startDate = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
     const endDate = new Date(targetYear, targetMonth, 0).toISOString().split('T')[0];
 
-    const { data: payments, error } = await supabase
+    const { data: payments, error } = await req.supabase!
       .from('payments')
       .select('amount, status')
       .gte('payment_date', startDate)
@@ -71,7 +70,7 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const { month, year, status, tenant_id } = req.query;
 
-    let query = supabase
+    let query = req.supabase!
       .from('payments')
       .select('*')
       .order('payment_date', { ascending: false });
@@ -121,7 +120,7 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('payments')
       .insert({ ...parsed.data, status: 'completed' })
       .select()
@@ -161,7 +160,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('payments')
       .update(parsed.data)
       .eq('id', id)

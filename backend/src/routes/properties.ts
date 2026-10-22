@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
 import { authenticateUser } from '../middleware/auth.js';
 
 const router = Router();
@@ -21,10 +20,10 @@ const propertySchema = z.object({
 // GET /api/properties — list all properties for the authenticated user
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('properties')
       .select('*')
-      .eq('user_id', req.user.id)
+      .eq('user_id', req.user!.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -43,11 +42,11 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { data: property, error } = await supabase
+    const { data: property, error } = await req.supabase!
       .from('properties')
       .select('*')
       .eq('id', id)
-      .eq('user_id', req.user.id)
+      .eq('user_id', req.user!.id)
       .single();
 
     if (error) {
@@ -60,7 +59,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     // Fetch basic stats: total units, occupied units
-    const { data: unitsData } = await supabase
+    const { data: unitsData } = await req.supabase!
       .from('units')
       .select('id, status')
       .eq('property_id', id);
@@ -90,9 +89,9 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('properties')
-      .insert({ ...parsed.data, user_id: req.user.id })
+      .insert({ ...parsed.data, user_id: req.user!.id })
       .select()
       .single();
 
@@ -121,11 +120,11 @@ router.put('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('properties')
       .update(parsed.data)
       .eq('id', id)
-      .eq('user_id', req.user.id)
+      .eq('user_id', req.user!.id)
       .select()
       .single();
 
@@ -149,11 +148,11 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    const { error } = await req.supabase!
       .from('properties')
       .delete()
       .eq('id', id)
-      .eq('user_id', req.user.id);
+      .eq('user_id', req.user!.id);
 
     if (error) {
       res.status(500).json({ error: 'Database error', message: error.message });

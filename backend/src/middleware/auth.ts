@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabase } from '../lib/supabase.js';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { createUserClient } from '../lib/supabase.js';
 
-// Augment Express Request to include user
+// Augment Express Request with the authenticated user and their RLS-scoped client
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: User;
+      /** Supabase client bound to the caller's JWT — all queries run under their RLS policies. */
+      supabase?: SupabaseClient;
     }
   }
 }
@@ -36,17 +39,19 @@ export async function authenticateUser(
   }
 
   try {
-    const { data, error } = await supabase.auth.getUser(token);
+    const userClient = createUserClient(token);
+    const { data, error } = await userClient.auth.getUser(token);
 
     if (error || !data.user) {
       res.status(401).json({
         error: 'Unauthorized',
-        message: error?.message ?? 'Invalid or expired token',
+        message: 'Invalid or expired token',
       });
       return;
     }
 
     req.user = data.user;
+    req.supabase = userClient;
     next();
   } catch (err) {
     res.status(401).json({

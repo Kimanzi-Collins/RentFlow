@@ -14,6 +14,10 @@ import authRouter from './routes/auth.js';
 const app = express();
 const PORT = process.env.PORT ?? 3001;
 
+// Behind a reverse proxy (Render, Railway, Nginx…) set TRUST_PROXY=1 so the rate limiter
+// sees each client's real IP instead of the proxy's.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
+
 // Security headers
 app.use(helmet());
 
@@ -40,9 +44,21 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Brute-force protection: much tighter limit on credential checks
+app.use(
+  '/api/auth/sign-in',
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many attempts', message: 'Too many sign-in attempts. Please try again later.' },
+  })
+);
+
+// Body parsing (explicit size caps)
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {

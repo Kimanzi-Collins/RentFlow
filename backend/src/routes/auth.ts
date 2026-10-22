@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
+import { supabaseAnon } from '../lib/supabase.js';
 import { authenticateUser } from '../middleware/auth.js';
 
 const router = Router();
@@ -25,15 +25,16 @@ router.post('/sign-in', async (req: Request, res: Response) => {
 
     const { email, password } = parsed.data;
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseAnon.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
+      // Generic message: do not reveal whether the email exists or what failed
       res.status(401).json({
         error: 'Authentication failed',
-        message: error.message,
+        message: 'Invalid email or password',
       });
       return;
     }
@@ -49,20 +50,10 @@ router.post('/sign-in', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/auth/sign-out — sign out the current user
-router.post('/sign-out', async (req: Request, res: Response) => {
-  try {
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      res.status(500).json({ error: 'Sign out failed', message: error.message });
-      return;
-    }
-
-    res.json({ message: 'Signed out successfully' });
-  } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// POST /api/auth/sign-out — this API is stateless (the client holds the JWT), so signing
+// out means the client discarding its token. Nothing shared on the server is touched.
+router.post('/sign-out', authenticateUser, (_req: Request, res: Response) => {
+  res.json({ message: 'Signed out successfully' });
 });
 
 // GET /api/auth/me — get current authenticated user (protected)

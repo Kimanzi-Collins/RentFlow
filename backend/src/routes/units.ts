@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
 import { authenticateUser } from '../middleware/auth.js';
 
 const router = Router();
@@ -19,7 +18,7 @@ const unitSchema = z.object({
 // GET /api/units — list units, optionally filtered by property_id
 router.get('/', async (req: Request, res: Response) => {
   try {
-    let query = supabase.from('units').select('*').order('created_at', { ascending: false });
+    let query = req.supabase!.from('units').select('*').order('created_at', { ascending: false });
 
     if (req.query.property_id) {
       query = query.eq('property_id', req.query.property_id as string);
@@ -43,7 +42,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('units')
       .select(`
         *,
@@ -86,7 +85,7 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('units')
       .insert(parsed.data)
       .select()
@@ -117,7 +116,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('units')
       .update(parsed.data)
       .eq('id', id)
@@ -144,7 +143,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase.from('units').delete().eq('id', id);
+    const { error } = await req.supabase!.from('units').delete().eq('id', id);
 
     if (error) {
       res.status(500).json({ error: 'Database error', message: error.message });

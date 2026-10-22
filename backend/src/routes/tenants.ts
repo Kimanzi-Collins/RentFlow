@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
 import { authenticateUser } from '../middleware/auth.js';
 
 const router = Router();
@@ -19,7 +18,7 @@ const tenantSchema = z.object({
 // GET /api/tenants — list tenants with lease info
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('tenants')
       .select(`
         *,
@@ -50,7 +49,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { data: tenant, error: tenantError } = await supabase
+    const { data: tenant, error: tenantError } = await req.supabase!
       .from('tenants')
       .select(`
         *,
@@ -81,7 +80,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     // Fetch payment history
-    const { data: payments, error: paymentsError } = await supabase
+    const { data: payments, error: paymentsError } = await req.supabase!
       .from('payments')
       .select('*')
       .eq('tenant_id', id)
@@ -112,7 +111,7 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('tenants')
       .insert({ ...parsed.data, status: 'active' })
       .select()
@@ -143,7 +142,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('tenants')
       .update(parsed.data)
       .eq('id', id)
@@ -170,7 +169,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('tenants')
       .update({ status: 'inactive' })
       .eq('id', id)

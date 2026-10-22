@@ -27,10 +27,10 @@ Backend REST API for the RentFlow property management application. Built with No
 |-----------------------|--------------------------------------------------|------------------------------|
 | `PORT`                | Port the API server listens on                   | `3001`                       |
 | `SUPABASE_URL`        | Your Supabase project URL                        | `https://xyz.supabase.co`    |
-| `SUPABASE_SERVICE_KEY`| Supabase service role secret key (server-side)   | `eyJhbGciOiJIUzI1NiIs...`    |
+| `SUPABASE_ANON_KEY`   | Supabase anon (publishable) key; requests run as the signed-in user under RLS | `eyJhbGciOiJIUzI1NiIs...`    |
 | `FRONTEND_URL`        | Allowed CORS origin (your frontend URL)          | `http://localhost:5173`      |
 
-> **Note:** Use the **service role key** (not the anon key) for `SUPABASE_SERVICE_KEY`. This key bypasses Row Level Security and should never be exposed to the client.
+> **Note:** Do not use the service-role key here. It bypasses Row Level Security, which would let any signed-in user read and change every landlord's data. The API forwards each caller's own JWT so RLS applies to every query.
 
 ## Running the Server
 

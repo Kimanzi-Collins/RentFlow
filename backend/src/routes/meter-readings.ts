@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { supabase } from '../lib/supabase.js';
 import { authenticateUser } from '../middleware/auth.js';
 
 const router = Router();
@@ -28,7 +27,7 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const { month, unit_id, type } = req.query;
 
-    let query = supabase
+    let query = req.supabase!
       .from('meter_readings')
       .select('*')
       .order('reading_date', { ascending: false });
@@ -84,7 +83,7 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('meter_readings')
       .insert(parsed.data)
       .select()
@@ -121,7 +120,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.supabase!
       .from('meter_readings')
       .update(parsed.data)
       .eq('id', id)
