@@ -277,7 +277,10 @@ export const TenantDetail: React.FC = () => {
     const method = record.transactions.length > 0 ? record.transactions[record.transactions.length - 1].method : 'System';
     const rentPaid = record.amount_paid;
     const waterPaid = wRecord ? wRecord.amount_paid : 0;
-    downloadReceipt(tenant, record.period, rentPaid, waterPaid, method, wRecord);
+    downloadReceipt(tenant, record.period, rentPaid, waterPaid, method, wRecord, {
+      rent: record.balance,
+      water: wRecord ? wRecord.balance : 0,
+    });
   }
 
   // Ensure rent records exist for all available periods when user views rent tab

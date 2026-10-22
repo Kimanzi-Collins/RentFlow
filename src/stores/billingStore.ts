@@ -59,6 +59,11 @@ export interface WaterReading {
   billed_date: string;
 }
 
+/** True when an RPC failed only because the function hasn't been created in the database yet. */
+function rpcMissing(error: { code?: string; message?: string } | null): boolean {
+  return !!error && (error.code === 'PGRST202' || error.code === '42883' || /could not find the function/i.test(error.message ?? ''));
+}
+
 // ─── Period helpers ───────────────────────────────────────────────────────────
 
 export function makePeriodKey(year: number, month: number): string {
@@ -142,7 +147,6 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
 
   fetchBillingData: async () => {
     const { isDemoMode } = useAuthStore.getState();
-    console.log('[billingStore] fetchBillingData called, isDemoMode:', isDemoMode);
     if (isDemoMode) {
       console.warn('[billingStore] Skipping fetch because isDemoMode is true. If you are logged in with a real account, clear localStorage key "rentflow-auth" and reload.');
       return;
@@ -427,28 +431,46 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
 
   recordPayment: async (tenantId, periodKey, amount, method, note) => {
     try {
+      if (!Number.isFinite(amount) || amount <= 0) return { error: 'Enter a valid payment amount.' };
+
       const { rentRecords } = get();
       const record = rentRecords.find(r => r.tenant_id === tenantId && r.period_key === periodKey);
-      
+
       if (record) {
+        if (amount > record.balance + 0.005) {
+          return { error: `Amount exceeds the outstanding rent balance of KSh ${record.balance.toLocaleString()}.` };
+        }
+        // Preferred: one atomic database call (row-locked), immune to double-clicks / two devices.
+        const { error: rpcErr } = await supabase.rpc('record_rent_payment', {
+          p_rent_record_id: record.id, p_amount: amount, p_method: method, p_note: note ?? null,
+        });
+        if (!rpcErr) {
+          await get().fetchBillingData();
+          return {};
+        }
+        if (!rpcMissing(rpcErr)) return { error: rpcErr.message };
+
+        // Fallback while security_hardening_2.sql has not been run
         const newPaid = record.amount_paid + amount;
         let newStatus = record.status;
         if (newPaid >= record.rent_due) newStatus = 'paid';
         else if (newPaid > 0) newStatus = 'partial';
-        
-        await supabase.from('rent_records').update({
+
+        const { error: updErr } = await supabase.from('rent_records').update({
           amount_paid: newPaid,
           status: newStatus
         }).eq('id', record.id);
-        
-        await supabase.from('rent_transactions').insert({
+        if (updErr) return { error: updErr.message };
+
+        const { error: txnErr } = await supabase.from('rent_transactions').insert({
           rent_record_id: record.id,
           amount: amount,
           payment_method: method,
           payment_date: new Date().toISOString().split('T')[0],
           note: note
         });
-        
+        if (txnErr) return { error: txnErr.message };
+
         await get().fetchBillingData();
         return {};
       }
@@ -460,9 +482,12 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
   },
   recordWaterReading: async (tenantId, unitNumber, year, month, currReading, rate, overridePrevReading) => {
     try {
+      if (!Number.isFinite(currReading) || currReading < 0) return { error: 'Enter a valid current reading.' };
+      if (rate !== undefined && (!Number.isFinite(rate) || rate <= 0)) return { error: 'Rate per unit must be greater than 0.' };
+
       const periodKey = `${year}-${String(month).padStart(2, '0')}`;
       const periodLabel = makePeriodLabel(year, month);
-      
+
       const { units } = useUnitStore.getState();
       const unit = units.find(u => u.unit_number === unitNumber);
       if (!unit) throw new Error('Unit not found');
@@ -553,9 +578,22 @@ export const useBillingStore = create<BillingState>()((set, get) => ({
 
   recordWaterPayment: async (readingId, amount) => {
     try {
+      if (!Number.isFinite(amount) || amount <= 0) return { error: 'Enter a valid payment amount.' };
+
       const reading = get().waterReadings.find(r => r.id === readingId);
       if (!reading) return { error: 'Water reading not found' };
+      if (amount > reading.balance + 0.005) {
+        return { error: `Amount exceeds the outstanding water balance of KSh ${reading.balance.toLocaleString()}.` };
+      }
 
+      const { error: rpcErr } = await supabase.rpc('record_water_payment', { p_reading_id: readingId, p_amount: amount });
+      if (!rpcErr) {
+        await get().fetchBillingData();
+        return {};
+      }
+      if (!rpcMissing(rpcErr)) return { error: rpcErr.message };
+
+      // Fallback while security_hardening_2.sql has not been run
       const newPaid    = reading.amount_paid + amount;
       const newBalance = Math.max(0, reading.amount - newPaid);
       const { error }  = await supabase

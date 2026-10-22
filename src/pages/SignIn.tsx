@@ -356,30 +356,6 @@ export const SignIn: React.FC = () => {
                 right={<EyeToggle show={showConfirm} onToggle={() => setShowConfirm(v => !v)} />}
               />
 
-              {/* Role selector */}
-              {!inviteId && (
-                <div data-animate style={{ opacity: 0 }}>
-                  <label style={{ fontSize: 13, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 8 }}>I am a</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    {(['landlord', 'caretaker'] as const).map(r => (
-                      <button
-                        key={r} type="button" onClick={() => setRole(r)}
-                        style={{
-                          padding: '12px', borderRadius: 10, border: `2px solid ${role === r ? '#171717' : '#e5e7eb'}`,
-                          background: role === r ? '#171717' : '#fff', color: role === r ? '#fff' : '#6b7280',
-                          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                          transition: 'all 0.18s',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        }}
-                      >
-                        <Building2 size={14} />
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div data-animate style={{ marginTop: 4, opacity: 0 }}>
                 <button type="submit" disabled={loading} className="btn-organic btn-primary" style={{ width: '100%', padding: '14px', fontSize: 15, borderRadius: 12 }}>
                   {loading ? <><Loader2 size={18} className="animate-spin" /> Creating account…</> : <>Create Account <ChevronRight size={16} /></>}

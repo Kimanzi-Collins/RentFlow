@@ -1017,3 +1017,19 @@ body {
 }
 .toggle-switch input:checked + .toggle-slider { background: var(--brand-primary); }
 .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+/* ── Mobile layout fixes ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* 100vh includes the mobile browser's URL bar and hides the bottom of the page */
+  .app-shell { height: 100vh; height: 100dvh !important; }
+  /* No sidebar on phones: the 0px left padding made content touch the screen edge */
+  .app-main-col { padding: 8px !important; gap: 8px !important; }
+  .app-main { padding: 14px !important; border-radius: 16px !important; }
+  /* Keep modal buttons clear of the iPhone home indicator */
+  .modal-panel-wrap { padding-bottom: env(safe-area-inset-bottom); }
+  /* Balances: show tenant, total and actions; rent/water/unit live in the expanded row */
+  .bal-col-sm { display: none !important; }
+}
+@media (max-width: 480px) {
+  body { font-size: 14px; }
+}

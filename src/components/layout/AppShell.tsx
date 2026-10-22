@@ -65,7 +65,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-app)', overflow: 'hidden' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', background: 'var(--bg-app)', overflow: 'hidden' }}>
 
       {/* Desktop Sidebar */}
       <div className="hidden md:block" style={{ flexShrink: 0 }}>
@@ -78,11 +78,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       </div>
 
       {/* Main content column */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, padding: '12px 20px 20px 0', gap: 12 }}>
+      <div className="app-main-col" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, padding: '12px 20px 20px 0', gap: 12 }}>
         <Topbar onMenuClick={() => setMobileOpen(true)} />
 
         <main
           ref={mainRef}
+          className="app-main"
           style={{
             flex: 1,
             overflowY: 'auto',

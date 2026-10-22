@@ -5,6 +5,7 @@ import gsap from 'gsap';
 import { User, Shield, Bell, Globe, Palette, ChevronRight, Save, Camera } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { supabase } from '@/lib/supabase';
 
 interface NotifSetting { label: string; description: string; enabled: boolean; }
 
@@ -303,10 +304,17 @@ export const Settings: React.FC = () => {
               type="button"
               className="btn-organic btn-secondary"
               style={{ padding: '8px 16px', fontSize: 13, flexShrink: 0, marginLeft: 16 }}
-              onClick={() => {
-                const link = `${window.location.origin}/sign-in?invite=${profile.id}`;
-                navigator.clipboard.writeText(link);
-                success('Invite Link Copied', 'Send this link to your caretaker to let them sign up.');
+              onClick={async () => {
+                // Single-use link that expires in 7 days (replaces the old permanent landlord-id link)
+                const { data, error: invErr } = await supabase
+                  .from('caretaker_invites').insert({ landlord_id: profile.id }).select('token').single();
+                if (invErr || !data) {
+                  toastErr('Could not create invite', 'Please try again. If this keeps happening, ask your administrator to run security_hardening_2.sql.');
+                  return;
+                }
+                const link = `${window.location.origin}/sign-in?invite=${data.token}`;
+                await navigator.clipboard.writeText(link);
+                success('Invite Link Copied', 'Send it to your caretaker. It works once and expires in 7 days.');
               }}
             >
               Copy Invite Link

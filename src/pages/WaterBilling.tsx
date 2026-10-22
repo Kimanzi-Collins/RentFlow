@@ -61,7 +61,14 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
       
       success('Reading recorded', `${tenant.first_name} – Unit ${tenant.unit}: ${consumed} m³ × KSh ${rate} = KSh ${totalBill.toLocaleString()}`);
       
-      // Auto-download the small invoice slip
+      // Auto-download the small invoice slip — include what is already paid and any
+      // unpaid water from earlier months so the slip shows the tenant's true position.
+      const periodKey = `${year}-${String(month).padStart(2, '0')}`;
+      const { waterReadings } = useBillingStore.getState();
+      const saved = waterReadings.find(r => r.tenant_id === tenant.id && r.period_key === periodKey);
+      const previousBalance = waterReadings
+        .filter(r => r.tenant_id === tenant.id && r.period_key < periodKey)
+        .reduce((s, r) => s + r.balance, 0);
       downloadWaterInvoice(
         tenant,
         makePeriodLabel(year, month),
@@ -69,7 +76,8 @@ const RecordModal: React.FC<RecordModalProps> = ({ tenant, year, month, existing
         Number(curr),
         consumed,
         Number(rate),
-        totalBill
+        totalBill,
+        { amountPaid: saved?.amount_paid ?? 0, previousBalance },
       );
 
       onClose();
@@ -256,7 +264,7 @@ export const WaterBilling: React.FC = () => {
   const [tempRate, setTempRate]             = useState('');
   const periodDropRef = useRef<HTMLDivElement>(null);
   const containerRef  = useRef<HTMLDivElement>(null);
-  const { success }   = useToast();
+  const { success, error: errorToast } = useToast();
 
   const { year, month } = parsePeriodKey(selectedPeriod);
   const selectedLabel   = periods.find(p => p.key === selectedPeriod)?.label ?? '';
@@ -313,7 +321,10 @@ export const WaterBilling: React.FC = () => {
     const rentTotal = updatedRent ? updatedRent.amount_paid : 0;
     const waterTotal = reading.amount_paid;
     // We can default method to 'System' since water readings don't have transaction breakdown in UI directly
-    downloadReceipt(reading.tenant, reading.period, rentTotal, waterTotal, 'System', reading);
+    downloadReceipt(reading.tenant, reading.period, rentTotal, waterTotal, 'System', reading, {
+      rent: updatedRent ? updatedRent.balance : 0,
+      water: reading.balance,
+    });
   }
 
   async function saveRate(tenantId: string) {
@@ -330,7 +341,7 @@ export const WaterBilling: React.FC = () => {
     setEditRateFor(null);
   }
 
-  const getReading = (tenantId: number) => readings.find(r => r.tenant_id === tenantId);
+  const getReading = (tenantId: string) => readings.find(r => r.tenant_id === tenantId);
 
   return (
     <div ref={containerRef} className="page-root">

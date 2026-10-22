@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   LayoutDashboard, Building2, Users, Home, CreditCard,
   Settings, LogOut, Droplets, Wrench, HelpCircle,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Wallet,
 } from 'lucide-react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { path: '/units',       icon: Home,            label: 'Units'        },
   { path: '/tenants',     icon: Users,           label: 'Tenants'      },
   { path: '/payments',    icon: CreditCard,      label: 'Payments'     },
+  { path: '/balances',    icon: Wallet,          label: 'Balances'     },
   { path: '/maintenance', icon: Wrench,          label: 'Maintenance'  },
   { path: '/water',       icon: Droplets,        label: 'Water'        },
   { path: '/settings',    icon: Settings,        label: 'Settings'     },

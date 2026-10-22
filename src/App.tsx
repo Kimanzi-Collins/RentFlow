@@ -11,6 +11,7 @@ import { TenantDetail } from '@/pages/TenantDetail';
 import { Units } from '@/pages/Units';
 import { Payments } from '@/pages/Payments';
 import { WaterBilling } from '@/pages/WaterBilling';
+import { Balances } from '@/pages/Balances';
 import { Settings } from '@/pages/Settings';
 import { Maintenance } from '@/pages/Maintenance';
 import { useAuthStore, useIsAuthenticated } from '@/stores/authStore';
@@ -102,6 +103,9 @@ export function App() {
 
         {/* Payments — monthly rent tracking */}
         <Route path="/payments" element={<ProtectedLayout><Payments /></ProtectedLayout>} />
+
+        {/* Balances — what each tenant owes (rent + water), month by month */}
+        <Route path="/balances" element={<ProtectedLayout><Balances /></ProtectedLayout>} />
 
         {/* Water billing (was /utilities) */}
         <Route path="/water" element={<ProtectedLayout><WaterBilling /></ProtectedLayout>} />

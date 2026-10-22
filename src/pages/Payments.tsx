@@ -51,7 +51,7 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
   const periodRecord   = rentRecords.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod) ?? record;
   const rentBalance    = periodRecord ? periodRecord.balance : tenant.rent_amount;
   // All outstanding water readings for this tenant (across all periods)
-  const outstandingWater = waterReadings.filter(r => r.tenant_id === tenant.id && r.status === 'outstanding');
+  const outstandingWater = waterReadings.filter(r => r.tenant_id === tenant.id && r.status !== 'paid');
   const waterReading   = waterReadings.find(r => r.tenant_id === tenant.id && r.period_key === selectedPeriod);
   const periodWaterBal = waterReading?.balance ?? 0;
   const totalWaterBal  = outstandingWater.reduce((s, r) => s + r.balance, 0);
@@ -172,7 +172,7 @@ const PayModal: React.FC<PayModalProps> = ({ tenant, record, initialPeriodKey, o
           <input
             className="modal-input"
             type="number" min="1"
-            max={payType === 'rent' ? rentBalance : waterBalance}
+            max={payType === 'rent' ? rentBalance : periodWaterBal}
             value={amount}
             onChange={e => setAmount(e.target.value)}
             readOnly={payType === 'water'}

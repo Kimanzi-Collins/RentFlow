@@ -44,6 +44,17 @@ interface AuthState {
   enableDemoMode: () => void;
 }
 
+/** Profile columns a user may edit themselves (never role / landlord_id / id). */
+const EDITABLE_PROFILE_FIELDS = ['full_name', 'phone', 'company_name', 'avatar_url'] as const;
+
+/** Allowed avatar uploads: MIME type → file extension. */
+const AVATAR_TYPES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
 /** Demo profile for development without Supabase */
 const DEMO_PROFILE: Profile = {
   id: 'demo-user-id',
@@ -203,7 +214,8 @@ export const useAuthStore = create<AuthState>()(
           const { data, error } = await supabase.auth.signUp({
             email, password,
             options: { 
-              data: { full_name: fullName, role, landlord_id: landlordId },
+              // Role is decided by the database: landlord unless a valid single-use invite token is present.
+              data: { full_name: fullName, ...(landlordId ? { invite_token: landlordId } : {}) },
               emailRedirectTo: 'https://rentflow2.netlify.app/sign-in'
             },
           });
@@ -271,15 +283,23 @@ export const useAuthStore = create<AuthState>()(
 
         if (!profile) return { error: 'No profile found' };
 
+        // Only ever send user-editable columns. Passing a raw `updates` object through would
+        // let a caller change `role` / `landlord_id` (mass assignment → privilege escalation).
+        const safeUpdates: Partial<Profile> = {};
+        for (const key of EDITABLE_PROFILE_FIELDS) {
+          if (updates[key] !== undefined) (safeUpdates as Record<string, unknown>)[key] = updates[key];
+        }
+        if (!Object.keys(safeUpdates).length) return {};
+
         try {
           const { error } = await supabase
             .from('profiles')
-            .update(updates)
+            .update(safeUpdates)
             .eq('id', profile.id);
 
           if (error) throw error;
 
-          set({ profile: { ...profile, ...updates } });
+          set({ profile: { ...profile, ...safeUpdates } });
           return {};
         } catch (err) {
           const message = (err as Error).message;
@@ -291,14 +311,19 @@ export const useAuthStore = create<AuthState>()(
         const { user } = get();
         if (!user) return { error: 'Not authenticated' };
 
+        // Validate on the client too (the bucket enforces the same limits server-side).
+        // The extension comes from the verified MIME type, never from the user-supplied file name.
+        const fileExt = AVATAR_TYPES[file.type];
+        if (!fileExt) return { error: 'Please choose a PNG, JPG or WebP image.' };
+        if (file.size > MAX_AVATAR_BYTES) return { error: 'Image must be 2 MB or smaller.' };
+
         try {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-          const filePath = `${fileName}`;
+          // Folder = user id; the storage policy only lets a user write inside their own folder.
+          const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
           const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(filePath, file, { upsert: true });
+            .upload(filePath, file, { upsert: false, contentType: file.type });
 
           if (uploadError) throw uploadError;
 
